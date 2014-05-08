@@ -1,0 +1,10 @@
+compress
+
+/var/log/powervc/*.log {
+    weekly
+    rotate 4
+    missingok
+    compress
+    minsize 100k
+    size 50M
+}

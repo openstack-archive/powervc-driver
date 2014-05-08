@@ -1,0 +1,120 @@
+#!/usr/bin/env python
+COPYRIGHT = """
+*************************************************************
+Licensed Materials - Property of IBM
+
+OCO Source Materials
+
+(C) Copyright IBM Corp. 2013 All Rights Reserved
+*************************************************************
+"""
+
+import sys
+import traceback
+import os
+
+if ('eventlet' in sys.modules and
+        os.environ.get('EVENTLET_NO_GREENDNS', '').lower() != 'yes'):
+    raise ImportError('eventlet imported before neutron agent '
+                      '(env var set to %s)'
+                      % os.environ.get('EVENTLET_NO_GREENDNS'))
+
+os.environ['EVENTLET_NO_GREENDNS'] = 'yes'
+import eventlet
+eventlet.patcher.monkey_patch(os=False, thread=False)
+
+from oslo.config import cfg
+
+from neutron import context
+from neutron.common import config as logging_config
+from neutron.openstack.common import log as logging
+
+from powervc.common import config
+from powervc.neutron.api.client_rpc import RpcClient
+
+LOG = logging.getLogger(__name__)
+VALID_COMMANDS = ['net-list', 'subnet-list', 'port-list', 
+                  'net-show', 'subnet-show', 'port-show',
+                  'get-local-net', 'get-pvc-net']
+
+def usage():
+    print 'Usage neutron-powervc'
+    print ''
+    print 'Commands:'
+    print '  net-list                     List networks mapped in the DB'
+    print '  net-show       <sync_key>    Retrieve a specific network mapping'
+    print ''
+    print '  subnet-list                  List subnets mapped in the DB'
+    print '  subnet-show    <sync_key>    Retrieve a specific subnet mapping'
+    print ''
+    print '  port-list                    List ports mapped in the DB'
+    print '  port-show      <sync_key>    Retrieve a specific port mapping'
+    print ''
+    print '  get-local-net  <pvc id>      Retrieve local id for PVC network id'
+    print '  get-pvc-net    <local id>    Retrieve PVC id for local network id'
+    print ''
+    sys.exit(0)
+
+def main():
+    try:
+        if len(sys.argv) == 1:
+            usage()
+        cmd = sys.argv[1]
+        opt = None
+        if len(sys.argv) == 3:
+            opt = sys.argv[2]
+        if cmd not in VALID_COMMANDS:
+            print 'Invlaid request:', cmd
+            usage()
+
+        argv = [sys.argv[0]]
+        config.parse_power_config(argv, 'powervc-neutron')
+        # logging_config.setup_logging(cfg.CONF)
+
+        LOG.debug(_('Create RPC interface'))
+        ctx = context.get_admin_context_without_session()
+        rpc = RpcClient(ctx)
+
+        if cmd == 'net-list':
+            LOG.debug(_('Calling RPC method'))
+            rpc.get_networks()
+        elif cmd == 'subnet-list':
+            LOG.debug(_('Calling RPC method'))
+            rpc.get_subnets()
+        elif cmd == 'port-list':
+            LOG.debug(_('Calling RPC method'))
+            rpc.get_ports()
+        elif cmd == 'net-show':
+            if not opt:
+                usage()
+            LOG.debug(_('Calling RPC method'))
+            rpc.get_network(opt)
+        elif cmd == 'subnet-show':
+            if not opt:
+                usage()
+            LOG.debug(_('Calling RPC method'))
+            rpc.get_subnet(opt)
+        elif cmd == 'port-show':
+            if not opt:
+                usage()
+            LOG.debug(_('Calling RPC method'))
+            rpc.get_port(opt)
+        elif cmd == 'get-local-net':
+            if not opt:
+                usage()
+            LOG.debug(_('Calling RPC method'))
+            rpc.get_local_network_uuid(opt)
+        elif cmd == 'get-pvc-net':
+            if not opt:
+                usage()
+            LOG.debug(_('Calling RPC method'))
+            rpc.get_pvc_network_uuid(opt)
+        else:
+            usage()
+        
+    except Exception:
+        traceback.print_exc()
+        raise
+
+if __name__ == "__main__":
+    main()

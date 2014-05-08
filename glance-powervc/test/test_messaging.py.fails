@@ -1,0 +1,254 @@
+COPYRIGHT = """
+*************************************************************
+Licensed Materials - Property of IBM
+
+OCO Source Materials
+
+(C) Copyright IBM Corp. 2013 All Rights Reserved
+*************************************************************
+"""
+
+import sys
+import itertools
+import time
+import traceback
+
+from oslo.config import cfg
+from glance.openstack.common import gettextutils
+gettextutils.install('glance')
+import glance.openstack.common.log as logging
+from glance.common import config as logging_config
+from glanceclient.v1 import images as v1images
+
+from powervc.common import config
+from powervc.glance.common import constants
+
+# PowerVC Driver ImageManager specific configuration
+image_opts = [
+
+    # The image period sync interval in seconds
+    cfg.IntOpt('image_periodic_sync_interval_in_seconds',
+               default=constants.IMAGE_PERIODIC_SYNC_INTERVAL_IN_SECONDS)
+]
+
+CONF = config.CONF
+CONF.register_opts(image_opts, 'powervc')
+
+LOG = logging.getLogger(__name__)
+
+config.parse_power_config(sys.argv, 'glance')
+
+from powervc.common import messaging
+from powervc.common import constants as consts
+import powervc.common.client.factory as clients
+
+
+def test_image_events(wait_forever=True):
+
+    def local_reconnect():
+        LOG.debug(_('Re-established connection to local hosting OS '
+                    'Qpid broker'))
+
+    local_conn = messaging.LocalConnection(log=logging,
+                                           reconnect_handler=local_reconnect)
+#    local_conn = messaging.QpidConnection('localhost:5672', \
+#                                    'admin', 'ICA1NTQxNzI5ODgK')
+#    conn = messaging.QpidConnection('localhost:5672', 'admin', 'openstack1')
+    local_listener = local_conn.create_listener('glance', 'notifications.info')
+    local_listener.register_handler('image.*',
+                                    handle_local_image_notifications)
+    local_conn.start()
+
+#    pvc_conn = messaging.QpidConnection('9.5.125.55:5672', \
+#                                    'anonymous', '')
+
+    def pvc_reconnect():
+        LOG.debug(_('Re-established connection to PowerVC Qpid broker'))
+
+    pvc_conn = messaging.PowerVCConnection(log=logging,
+                                           reconnect_handler=pvc_reconnect)
+
+#    pvc_conn = messaging.QpidConnection('9.5.125.55:5672', \
+#                                       'root', 'passw0rd')
+    pvc_listener = pvc_conn.create_listener('glance', 'notifications.info')
+    pvc_listener.register_handler('image.*',
+                                  handle_pvc_image_notifications)
+    pvc_conn.start()
+
+    print 'Monitoring hosting OS and PowerVC for Image notifications...'
+    while wait_forever:
+        time.sleep(5)
+
+
+def test_pvc_image_events(wait_forever=True):
+
+#    pvc_conn = messaging.QpidConnection('9.5.125.55:5672', \
+#                                    'anonymous', '')
+
+    def pvc_reconnect():
+        LOG.debug(_('Re-established connection to PowerVC Qpid broker'))
+
+    pvc_conn = messaging.PowerVCConnection(log=logging,
+                                           reconnect_handler=pvc_reconnect)
+
+#    pvc_conn = messaging.QpidConnection('9.5.125.55:5672', \
+#                                       'root', 'passw0rd')
+    pvc_listener = pvc_conn.create_listener('glance', 'notifications.info')
+    pvc_listener.register_handler('image.*',
+                                  handle_pvc_image_notifications)
+    pvc_conn.start()
+
+    print 'Monitoring PowerVC for Image notifications...'
+    while wait_forever:
+        time.sleep(5)
+
+
+def handle_local_image_notifications(context, message):
+    print '=' * 80
+    print 'LOCAL:', str(context)
+    print 'LOCAL:', str(message)
+    image = message.get('payload')  # should be the v1 image as a dict
+    dump_image(image)
+    print '=' * 80
+
+
+def handle_pvc_image_notifications(context, message):
+    print '=' * 80
+    print 'PVC:', str(context)
+    print 'PVC:', str(message)
+    image = message.get('payload')  # should be the v1 image as a dict
+    dump_image(image)
+    print '=' * 80
+
+
+def dump_image(image_dict):
+    for v1imagekey in image_dict.keys():
+        print v1imagekey, '=', image_dict.get(v1imagekey)
+    props = image_dict.get('properties')
+    if props:
+        for v1imageprop in props.keys():
+            print 'property: ', v1imageprop, '=',\
+                props.get(v1imageprop)
+
+
+def test_update_local_image(image_id):
+    params = {}
+    filters = {}
+    filters['is_public'] = False
+    params['filters'] = filters
+    local_v1client = \
+        clients.LOCAL.get_client(str(consts.SERVICE_TYPES.image), 'v1')
+    v1local_images = local_v1client.images
+    image = \
+        get_v1image_from_id(image_id, itertools.chain(
+            v1local_images.list(), v1local_images.list(**params)))
+    if image:
+        field_dict, patch_dict = get_v1image_update_fields(image)
+        if 'is_public' in field_dict.keys():
+            public = field_dict['is_public']
+            field_dict['is_public'] = not public
+        v1local_images.update(image, **field_dict)
+        if len(patch_dict) > 0:
+            local_v2client = \
+                clients.LOCAL.get_client(str(consts.SERVICE_TYPES.image), 'v2')
+            v2local_images = local_v2client.images
+            v2local_images.update(image.id, **patch_dict)
+        print 'Image', image.name, 'updated.'
+    else:
+        print 'Image', image_id, 'not found!'
+
+
+def get_v1image_update_fields(image):
+    """
+    Get the properties for an image update
+
+    :param: image The image to pull properties from to be used
+                for an image update operation.
+    :returns: A tuple containing with the dict containing the
+                properties to use for an image update operation,
+                and the dict of the properties that are too
+                large to be processed by v1 Image APIs. Those
+                properties should be updated using the
+                v2 Image PATCH API.
+    """
+    field_dict = {}
+    patch_dict = {}
+    props = image.properties
+    if props and props is not None:
+        patch_dict = remove_large_properties(props)
+        image.properties = props
+    image_dict = image.to_dict()
+    for imagekey in image_dict.keys():
+        if imagekey in v1images.UPDATE_PARAMS and \
+                imagekey not in constants.IMAGE_UPDATE_PARAMS_FILTER:
+            field_value = image_dict.get(imagekey)
+            if field_value is not None:
+                if len(str(field_value)) < constants.MAX_HEADER_LEN_V1:
+                    field_dict[imagekey] = field_value
+                else:
+                    patch_dict[imagekey] = field_value
+    return field_dict, patch_dict
+
+
+def remove_large_properties(properties):
+    """
+    Remove any properties that are too large to be processed by
+    the v1 APIs and return them in a dict to the caller. The properties
+    passed in are also modified.
+
+    :param: properties. The properties dict to remove large properties
+                from. Large properties are removed from the original
+                properties dict
+    :returns: A dict containing properties that are too large to
+                be processed by v1 Image APIs
+    """
+    too_large_properties = {}
+    if properties and properties is not None:
+        for propkey in properties.keys():
+            propvalue = properties.get(propkey)
+            if propvalue and propvalue is not None:
+                if properties.get(propkey) and (len(str(propvalue)) >=
+                                                constants.MAX_HEADER_LEN_V1):
+                    too_large_properties[propkey] = properties.pop(propkey)
+    return too_large_properties
+
+
+def test_delete_local_image(image_id):
+    pass
+
+
+def get_v1image_from_id(image_id, v1images):
+    """
+    Get a v1 Image from an image id.
+
+    :param: image_id The image id
+    :param: v1images The image manager used to obtain images from the
+                v1 glance client
+    :returns: The image for the specified id or None if not found.
+    """
+    for image in v1images:
+        if image and image.id == image_id:
+            return image
+    return None
+
+"""
+Main test entry point
+"""
+if __name__ == '__main__':
+    try:
+        # turn off debug logging
+#        CONF.debug = False
+        logging_config.setup_logging()
+        logging.setup('powervc')
+
+        # test getting the staging project id
+#        test_image_events(wait_forever=True)
+        test_pvc_image_events(wait_forever=True)
+#        image_id = '3060d198-c951-4693-9b1d-6314ac0539bf'
+#        test_update_local_image(image_id)
+#        test_delete_local_image(image_id)
+
+        print 'Tests done!'
+    except Exception:
+        traceback.print_exc()
+        raise
