@@ -1,13 +1,4 @@
-COPYRIGHT = """
-*************************************************************
-Licensed Materials - Property of IBM
-
-OCO Source Materials
-
-(C) Copyright IBM Corp. 2014 All Rights Reserved
-
-*************************************************************
-"""
+# Copyright 2014 IBM Corp.
 import sys
 import mock
 import testtools

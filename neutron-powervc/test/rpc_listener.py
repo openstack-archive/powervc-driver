@@ -1,12 +1,4 @@
-COPYRIGHT = """
-*************************************************************
-Licensed Materials - Property of IBM
-
-OCO Source Materials
-
-(C) Copyright IBM Corp. 2013 All Rights Reserved
-*************************************************************
-"""
+# Copyright 2013 IBM Corp.
 
 import sys
 import time

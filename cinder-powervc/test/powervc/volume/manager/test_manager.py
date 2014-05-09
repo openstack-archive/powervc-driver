@@ -1,12 +1,4 @@
-COPYRIGHT = """
-*************************************************************
-Licensed Materials - Property of IBM
-
-OCO Source Materials
-
-(C) Copyright IBM Corp. 2013 All Rights Reserved
-*************************************************************
-"""
+# Copyright 2013 IBM Corp.
 from cinder.openstack.common import gettextutils
 gettextutils.install('cinder')
 import unittest
