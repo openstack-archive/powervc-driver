@@ -1,12 +1,4 @@
-COPYRIGHT = """
-*************************************************************
-Licensed Materials - Property of IBM
-
-OCO Source Materials
-
-(C) Copyright IBM Corp. 2013 All Rights Reserved
-*************************************************************
-"""
+# Copyright 2013 IBM Corp.
 
 import powervc.common.client.service as service
 from powervc.common.client.config import CONF as CONF
