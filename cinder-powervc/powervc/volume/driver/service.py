@@ -1,13 +1,5 @@
 from __future__ import absolute_import
-COPYRIGHT = """
-*************************************************************
-Licensed Materials - Property of IBM
-
-OCO Source Materials
-
-(C) Copyright IBM Corp. 2013 All Rights Reserved
-*************************************************************
-"""
+# Copyright 2013 IBM Corp.
 
 import httplib
 
