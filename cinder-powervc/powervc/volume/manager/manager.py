@@ -168,50 +168,50 @@ class PowerVCCinderManager(service.Service):
         listener = conn.create_listener('cinder', 'notifications.info')
 
         # Volume type creation
-        LOG.debug(_("Register event handler for %s event ")
+        LOG.debug("Register event handler for %s event "
                   % constants.EVENT_VOLUME_TYPE_CREATE)
         listener.register_handler(constants.EVENT_VOLUME_TYPE_CREATE,
                                   self._handle_powervc_volume_type_create)
 
         # Volume type deletion
-        LOG.debug(_("Register event handler for %s event ")
+        LOG.debug("Register event handler for %s event "
                   % constants.EVENT_VOLUME_TYPE_DELETE)
         listener.register_handler(constants.EVENT_VOLUME_TYPE_DELETE,
                                   self._handle_powervc_volume_type_delete)
 
         # Volume type extra spec changes
-        LOG.debug(_("Register event handler for %s event ")
+        LOG.debug("Register event handler for %s event "
                   % constants.EVENT_VOLUME_TYPE_EXTRA_SPECS_UPDATE)
         listener.register_handler([
             constants.EVENT_VOLUME_TYPE_EXTRA_SPECS_UPDATE],
             self._handle_powervc_volume_type_extra_spec_update)
 
-        LOG.debug(_("Register event handler for %s event ")
+        LOG.debug("Register event handler for %s event "
                   % constants.EVENT_VOLUME_CREATE_END)
         listener.register_handler([constants.EVENT_VOLUME_CREATE_END],
                                   self._handle_powervc_volume_create)
 
-        LOG.debug(_("Register event handler for %s event ")
+        LOG.debug("Register event handler for %s event "
                   % constants.EVENT_VOLUME_IMPORT_END)
         listener.register_handler([constants.EVENT_VOLUME_IMPORT_END],
                                   self._handle_powervc_volume_create)
 
-        LOG.debug(_("Register event handler for %s event ")
+        LOG.debug("Register event handler for %s event "
                   % constants.EVENT_VOLUME_DELETE_END)
         listener.register_handler([constants.EVENT_VOLUME_DELETE_END],
                                   self._handle_powervc_volume_delete)
 
-        LOG.debug(_("Register event handler for %s event ")
+        LOG.debug("Register event handler for %s event "
                   % constants.EVENT_VOLUME_UPDATE)
         listener.register_handler([constants.EVENT_VOLUME_UPDATE],
                                   self._handle_powervc_volume_update)
 
-        LOG.debug(_("Register event handler for %s event ")
+        LOG.debug("Register event handler for %s event "
                   % constants.EVENT_VOLUME_ATTACH_END)
         listener.register_handler([constants.EVENT_VOLUME_ATTACH_END],
                                   self._handle_powervc_volume_update)
 
-        LOG.debug(_("Register event handler for %s event ")
+        LOG.debug("Register event handler for %s event "
                   % constants.EVENT_VOLUME_DETACH_END)
         listener.register_handler([constants.EVENT_VOLUME_DETACH_END],
                                   self._handle_powervc_volume_update)
@@ -663,7 +663,7 @@ class PowerVCCinderManager(service.Service):
             ret = db.volume_type_create(context, volume_type)
         except Exception as e:
             ret = None
-            LOG.debug(_("Failed to create volume type %s , Exception: %s")
+            LOG.debug("Failed to create volume type %s , Exception: %s"
                       % (volume_type['name'], e))
         return ret
 
@@ -683,7 +683,7 @@ class PowerVCCinderManager(service.Service):
                 context, local_volume_type.get('id'),
                 extra_specs)
         except Exception as e:
-            LOG.debug(_("Failed to update volume type %s , Exception: %s")
+            LOG.debug("Failed to update volume type %s , Exception: %s"
                       % (local_volume_type.get('id'), e))
             return False
 
@@ -704,7 +704,7 @@ class PowerVCCinderManager(service.Service):
         try:
             db.volume_type_destroy(ctx, vol_type_id)
         except Exception as e:
-            LOG.debug(_("Failed to delete volume type %s , Exception: %s")
+            LOG.debug("Failed to delete volume type %s , Exception: %s"
                       % (vol_type_id, e))
             return False
 
@@ -810,8 +810,8 @@ class PowerVCCinderManager(service.Service):
                     local_pvc_volumes.append(local_volume)
         except Exception as e:
             local_pvc_volumes = None
-            LOG.debug(_('Failed to get all local volumes, \
-                        Exception: %s') % (e))
+            LOG.debug('Failed to get all local volumes, \
+                        Exception: %s' % (e))
 
         return local_pvc_volumes
 
@@ -826,7 +826,7 @@ class PowerVCCinderManager(service.Service):
                 ret_volume = db.volume_get(context, pvc_id)
             except Exception:
                 ret_volume = None
-                LOG.debug(_('Volume %s could not be found.') % pvc_id)
+                LOG.debug('Volume %s could not be found.' % pvc_id)
         else:
             all_local_volumes = None
             try:
@@ -854,8 +854,8 @@ class PowerVCCinderManager(service.Service):
                                                      id=volume_type_id)
         except Exception as e:
             ret_volume_type = None
-            LOG.debug(_("Failed to get local volume type by id [%s]. \
-                        Exception: %s") % (volume_type_id, e))
+            LOG.debug("Failed to get local volume type by id [%s]. \
+                        Exception: %s" % (volume_type_id, e))
 
         return ret_volume_type
 
@@ -872,8 +872,8 @@ class PowerVCCinderManager(service.Service):
                                                              volume_type_name)
         except Exception as e:
             ret_volume_type = None
-            LOG.debug(_("Failed to get local volume type by name [%s]. \
-                    Exception: %s") % (volume_type_name, e))
+            LOG.debug("Failed to get local volume type by name [%s]. \
+                    Exception: %s" % (volume_type_name, e))
 
         return ret_volume_type
 
@@ -945,7 +945,7 @@ class PowerVCCinderManager(service.Service):
             ret = True
         except Exception as e:
             ret = False
-            LOG.debug(_("Failed to update volume [%s] existed. Exception: %s")
+            LOG.debug("Failed to update volume [%s] existed. Exception: %s"
                       % (local_volume.get('display_name'), e))
 
         return ret
@@ -968,7 +968,7 @@ class PowerVCCinderManager(service.Service):
             ret = True
         except Exception as e:
             ret = False
-            LOG.debug(_("Failed to delete local volume %s, Exception: %s")
+            LOG.debug("Failed to delete local volume %s, Exception: %s"
                       % (volume_id, e))
 
         return ret
@@ -984,7 +984,7 @@ class PowerVCCinderManager(service.Service):
         volume_display_name = volume_info.get('display_name')
 
         if volume_type is None or volume_type == 'None':
-            LOG.debug(_("Volume type is None for volume: %s")
+            LOG.debug("Volume type is None for volume: %s"
                       % volume_display_name)
         else:
             LOG.debug("Check if exist volume type in local hosting OS, \
@@ -994,8 +994,8 @@ class PowerVCCinderManager(service.Service):
                 pvc_volume_type = self._service \
                                       .get_volume_type_by_name(volume_type)
             except Exception as e:
-                LOG.debug(_("Failed to get volume type from "
-                            "PowerVC by name [%s]. Exception: %s")
+                LOG.debug("Failed to get volume type from "
+                          "PowerVC by name [%s]. Exception: %s"
                           % (volume_type, e))
 
             if pvc_volume_type is not None:
@@ -1006,8 +1006,8 @@ class PowerVCCinderManager(service.Service):
                                              dict_pvc_volume_type.get("id"),
                                              False)
                 if exist_volume_type is False:
-                    LOG.debug(_('''Volume type [%s] is non-existent,
-                                insert into hosting OS''') % volume_type)
+                    LOG.debug('Volume type [%s] is non-existent,
+                              insert into hosting OS' % volume_type)
 
                     try:
                         self._insert_pvc_volume_type(context,
@@ -1016,7 +1016,7 @@ class PowerVCCinderManager(service.Service):
                         LOG.debug("Failed to insert volume type")
                     LOG.debug("Insert volume type successfully")
                 else:
-                    LOG.debug(_("Volume type [%s] existed") % volume_type)
+                    LOG.debug("Volume type [%s] existed" % volume_type)
 
         values = self._get_values_from_volume(context, volume)
 
@@ -1028,11 +1028,11 @@ class PowerVCCinderManager(service.Service):
             try:
                 db.volume_create(context, values)
             except Exception as e:
-                LOG.debug(_("Failed to create volume %s. Exception: %s")
+                LOG.debug("Failed to create volume %s. Exception: %s"
                           % (str(values), str(e)))
                 return None
 
-        LOG.debug(_("Create volume %s successfully") % values)
+        LOG.debug("Create volume %s successfully" % values)
 
     def _get_values_from_volume(self, context, volume, local_volume=None):
         if volume is None:
