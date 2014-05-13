@@ -223,7 +223,7 @@ class PowerVCDriver(VolumeDriver):
                               "contain a powervc volume identifier."))
 
         except NotFound:
-            LOG.debug(_("Volume id %s was already deleted on powervc"),
+            LOG.debug("Volume id %s was already deleted on powervc",
                       pvc_volume_id)
             LOG.info(_("Volume %s deleted."), self._get_vol_name(volume))
         except Exception as e:
@@ -265,7 +265,7 @@ class PowerVCDriver(VolumeDriver):
         Retrieve volumes stats info from powervc.
         For now just make something up
         """
-        LOG.debug(_("Getting volume stats from powervc"))
+        LOG.debug("Getting volume stats from powervc")
 
         # get accessible storage providers list
         sp_list = self._list_storage_providers()

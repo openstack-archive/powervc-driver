@@ -76,8 +76,8 @@ class PowerVCService(object):
 
         temp_status = getattr(pvc_volume, 'status', None)
         if temp_status == constants.STATUS_CREATING:
-            LOG.debug(_(
-                'wait until created volume status is available or ERROR'))
+            LOG.debug(
+                'wait until created volume status is available or ERROR')
             timer = loopingcall.FixedIntervalLoopingCall(
                 self._wait_for_state_change, pvc_volume.id,
                 getattr(pvc_volume, 'status', None),
@@ -95,7 +95,7 @@ class PowerVCService(object):
                 additional_volume_data['status'] = getattr(latest_pvc_volume,
                                                            'status', '')
         else:
-            LOG.debug(_('Not in creating status, just set as powerVC status'))
+            LOG.debug('Not in creating status, just set as powerVC status')
             additional_volume_data['status'] = temp_status
 
         # return updated volume status information
@@ -133,7 +133,7 @@ class PowerVCService(object):
         """
         Deletes the specified powervc volume id from powervc
         """
-        LOG.debug(_("Deleting pvc volume: %s"), pvc_volume_id)
+        LOG.debug("Deleting pvc volume: %s", pvc_volume_id)
         if not pvc_volume_id:
             raise AttributeError(_("Powervc volume identifier must be "
                                    "specified"))
@@ -157,8 +157,8 @@ class PowerVCService(object):
             # volume available for deleting, perform delete opeartion
             PowerVCService._client.volumes.delete(pvc_volume_id)
 
-        LOG.debug(_(
-            'wait until created volume deleted or status is ERROR'))
+        LOG.debug(
+            'wait until created volume deleted or status is ERROR')
         timer = loopingcall.FixedIntervalLoopingCall(
             self._wait_for_state_change, existed_pvc_volume.id,
             getattr(existed_pvc_volume, 'status', None),
