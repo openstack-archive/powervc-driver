@@ -68,11 +68,13 @@ class AbstractService(object):
         return version
 
     def _init_std_client(self):
+        region_name = self.base_args.get('region_name', None)
         return self._patch(self.clazz(self.base_args['username'],
                                       self.base_args['password'],
                                       self.base_args['tenant_name'],
                                       self.base_args['auth_url'],
                                       self.base_args['insecure'],
+                                      region_name=region_name,
                                       cacert=self.base_args['cacert']))
 
     def new_client(self, client_extension=None, *extension_args):
@@ -158,6 +160,7 @@ class NeutronService(AbstractService):
         super(NeutronService, self).__init__(*kargs)
 
     def new_client(self, client_extension=None, *extension_args):
+        region_name = self.base_args.get('region_name', None)
         return self._extend(self._patch(self.clazz(
                             username=self.base_args['username'],
                             tenant_name=self.base_args['tenant_name'],
@@ -165,6 +168,7 @@ class NeutronService(AbstractService):
                             auth_url=self.base_args['auth_url'],
                             endpoint_url=self.management_url,
                             insecure=self.base_args['insecure'],
+                            region_name=region_name,
                             token=self.keystone.auth_token,
                             ca_cert=self.base_args['cacert'])),
                             client_extension, *extension_args)
