@@ -438,7 +438,7 @@ class QpidListener(object):
                                     % message['event_type']))
                 for handler in handlers:
                     handler(self.qpid_connection.context, message)
-        except Exception, e:
+        except Exception as e:
             log(log_, 'error', _('Error handling message: %s: %s. Message: '
                                  '%s.') % (Exception, e, message))
 
@@ -483,7 +483,7 @@ class QpidListener(object):
                     self._dispatch(message)
                 else:
                     break
-            except ConnectionError, e:
+            except ConnectionError as e:
                 log(self.qpid_connection.log, 'warning',
                     _("Connection error: %s") % (e))
                 self.qpid_connection._is_connected = False
