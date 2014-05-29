@@ -150,7 +150,7 @@ class PowerVCCloudManager(manager.Manager):
             filters['limit'] = CONF.powervc.image_limit
             params['filters'] = filters
             glance.get_default_image_service().detail(ctx, **params)
-        except Exception, e:
+        except Exception as e:
             # Just give an error, so the user can start
             # the glance.
             # Don't exit, because the glance might be starting.
@@ -178,7 +178,7 @@ class PowerVCCloudManager(manager.Manager):
             # Get both lists from local DB and PowerVC
             pvc_instances = self.driver.list_instances()
             local_instances = self._get_all_local_instances(ctx)
-        except Exception, e:
+        except Exception as e:
             # No point to do any following step, if error happens above.
             count_error += 1
             pvc_instances = []
@@ -210,7 +210,7 @@ class PowerVCCloudManager(manager.Manager):
                 try:
                     if self._add_local_instance(ctx, pvc_instance):
                         count_new_instances += 1
-                except Exception, e:
+                except Exception as e:
                     count_error += 1
                     LOG.error(_("Insert a new PVC instance failed."
                                 + str(pvc_instance)
@@ -226,7 +226,7 @@ class PowerVCCloudManager(manager.Manager):
                                                    matched_instances[0],
                                                    pvc_instance):
                         count_updated_instances += 1
-                except Exception, e:
+                except Exception as e:
                     count_error += 1
                     LOG.error(_("Update a PVC instance failed. "
                                 + str(pvc_instance)
@@ -250,7 +250,7 @@ class PowerVCCloudManager(manager.Manager):
                                                    local_instance,
                                                    force_delete=True):
                         count_deleted_instances += 1
-                except Exception, e:
+                except Exception as e:
                     count_error += 1
                     LOG.error(_("Delete a PVC instance failed. "
                                 + str(local_instance)
@@ -1647,7 +1647,7 @@ class PowerVCCloudManager(manager.Manager):
                 try:
                     instance = self.driver.get_instance(idx)
                     pvc_instances.append(instance)
-                except Exception, e:
+                except Exception as e:
                     LOG.warning(_('Error occured during get pvc instance \
                     [id:%s], %s' % (idx, e)))
 
@@ -1699,7 +1699,7 @@ class PowerVCCloudManager(manager.Manager):
                                                local_instance,
                                                pvc_instance):
                     count_updated_instances += 1
-            except Exception, e:
+            except Exception as e:
                 count_errors += 1
                 LOG.error(_("_periodic_instance_sync pvc to local: ") + str(e))
 
@@ -1717,7 +1717,7 @@ class PowerVCCloudManager(manager.Manager):
                                                    local_instance,
                                                    True):
                         count_deleted_instances += 1
-            except Exception, e:
+            except Exception as e:
                 count_errors += 1
                 LOG.error(_("_periodic_instance_sync local to pvc: " + str(e)))
 
@@ -1766,7 +1766,7 @@ class PowerVCCloudManager(manager.Manager):
                 except LoopingCallDone, lcd:
                     LOG.error(_('Exception: LoopingCallDone: ' + str(lcd)))
                     raise lcd
-                except Exception, e:
+                except Exception as e:
                     LOG.error(_('Exception: Exception: ' + str(e)))
                 LOG.debug(_('End: decorator of exception_swallowed for %s' %
                             str(func)))
