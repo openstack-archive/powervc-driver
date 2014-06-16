@@ -121,15 +121,12 @@ class PowerVCCloudManager(manager.Manager):
         # next instance sync interval.
         self.full_instance_sync_required = False
 
-        # Synchronize instances from PowerVC
-        self._synchronize_instances(ctx)
-
         # Synchronize the public flavors from PowerVC
         flavorsync.FlavorSync(self.driver,
                               self.scg_id_list).synchronize_flavors(ctx)
 
-        # This can be at the end of this function
-        flavorsync.periodic_flavor_sync(ctx, self.driver, self.scg_id_list)
+        # Synchronize instances from PowerVC
+        self._synchronize_instances(ctx)
 
         # Listen for out-of-band PowerVC changes
         self._create_powervc_listeners(ctx)
@@ -140,7 +137,8 @@ class PowerVCCloudManager(manager.Manager):
         self._create_local_listeners(ctx)
 
         # Set up periodic polling to sync instances
-        self._start_periodic_instance_sync(ctx)
+        # and flavor sync.
+        self._start_periodic_instance_flavor_sync(ctx)
 
     def _check_services(self, ctx):
         """
@@ -167,6 +165,9 @@ class PowerVCCloudManager(manager.Manager):
 
         :param: ctx The security context
         """
+
+        LOG.info(_("Initial instance sync. starts."))
+
         # Some counters to record instances modified.
         count_new_instances = 0
         count_updated_instances = 0
@@ -186,6 +187,7 @@ class PowerVCCloudManager(manager.Manager):
 
         # Sync. from PowerVC ---> local nova DB,
         # to insert new instances and update existing instances
+        LOG.info(_("Initial instance sync: pvc -> local"))
         for instance in pvc_instances:
             """
                 A sample of returned instance from PowerVC:
@@ -198,6 +200,9 @@ class PowerVCCloudManager(manager.Manager):
             # Convert an object to dictionary,
             # because some filed names has spaces.
             pvc_instance = instance.__dict__
+
+            LOG.info(_("Processing PVC instance: %s") % pvc_instance['id'])
+
             matched_instances = self.\
                 _get_local_instance_by_pvc_id(ctx, pvc_instance['id'])
             if len(matched_instances) == 0:
@@ -229,9 +234,12 @@ class PowerVCCloudManager(manager.Manager):
 
         # Sync. from local nova DB ---> PowerVC,
         # to remove invalid instances that are not in pvc anymore.
+        LOG.info(_("Initial instance sync: local -> pvc"))
         for local_instance in local_instances:
 
             greenthread.sleep(0)
+
+            LOG.info(_("Processing local instance: %s") % local_instance['id'])
 
             if not self._is_valid_pvc_instance(ctx,
                                                local_instance,
@@ -1707,13 +1715,14 @@ class PowerVCCloudManager(manager.Manager):
                   'delete': count_deleted_instances,
                   'error': count_errors}))
 
-    def _start_periodic_instance_sync(self, context):
+    def _start_periodic_instance_flavor_sync(self, context):
         """
         Initialize the periodic syncing of instances from PowerVC into the
         local OS. The powervc_instance_sync_interval config property determines
         how often the sync will occur, and the
         powervc_full_instance_sync_frequency config property determines the
         number of marked instance sync operations between full instance syncs.
+        Now this also launches flavor periodic sync.
 
         :param: context The security context
         """
@@ -1766,6 +1775,23 @@ class PowerVCCloudManager(manager.Manager):
 
         sync_call = loopingcall.FixedIntervalLoopingCall(sync)
         sync_call.start(interval=sync_interval, initial_delay=sync_interval)
+
+        #
+        # Start flavor sync.
+        #
+        flavor_interval = CONF.powervc.flavor_sync_interval
+        if flavor_interval is None or flavor_interval == 0:
+            return
+
+        @exception_swallowed
+        def sync_flavor():
+            fl = flavorsync.FlavorSync(self.driver,
+                                  self.scg_id_list)
+            fl.synchronize_flavors(context)
+        flavor_call = loopingcall.FixedIntervalLoopingCall(sync_flavor)
+        flavor_call.start(interval=flavor_interval,
+                          initial_delay=flavor_interval)
+
 
     def get_default_image(self, context):
         """
