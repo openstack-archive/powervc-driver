@@ -55,10 +55,12 @@ class FlavorSync():
             and not in black list, insert it.
          if it is already in local tables, ignore it.
         """
+        LOG.info(_("Flavors synchronization starts."))
         # Get all public flavors. By default, detail and public is set.
         pvcFlavors = self.driver.list_flavors()
         # Sync flavors in list
         for flavor in pvcFlavors:
+            LOG.info(_("Flavor:%s") % str(flavor))
             greenthread.sleep(0)
             # This check is added to eliminate sync of private flavors
             # Can be removed once PowerVC fixes to return only public flavors
@@ -70,6 +72,7 @@ class FlavorSync():
                 response = self._check_for_extraspecs(flavor)
                 if response is not None:
                     self._sync_flavor(ctx, flavor, response[1])
+        LOG.info(_("Flavors synchronization ends."))
 
     def _sanitize(self, opts_list):
         """
