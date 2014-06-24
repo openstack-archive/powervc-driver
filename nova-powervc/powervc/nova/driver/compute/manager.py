@@ -1571,6 +1571,28 @@ class PowerVCCloudManager(manager.Manager):
                                          pvc_instance)
             return True
 
+        if (pvc_task_state is None and
+           (pvc_vm_state == vm_states.ACTIVE or
+            pvc_vm_state == vm_states.ERROR) and
+                local_task_state == task_states.SPAWNING):
+
+            LOG.info(_('Update %(pvc_ins)s to %(local_ins)s, when'
+                       'pvc_task_state is %(pvc_task_state)s,'
+                       'pvc_vm_state is %(pvc_vm_state)s,'
+                       'local_task_state is %(local_task_state)s,'
+                       'local_vm_state is %(local_vm_state)s'
+                       % {'pvc_ins': pvc_instance,
+                          'local_ins': local_instance,
+                          'pvc_task_state': pvc_task_state,
+                          'pvc_vm_state': pvc_vm_state,
+                          'local_task_state': local_task_state,
+                          'local_vm_state': local_vm_state}))
+
+            self._sync_existing_instance(context,
+                                         local_instance,
+                                         pvc_instance)
+            return True
+
         LOG.debug(_('Skip update %(pvc_ins)s to %(local_ins)s, because'
                     'pvc_task_state is %(pvc_task_state)s,'
                     'pvc_vm_state is %(pvc_vm_state)s,'
@@ -1786,12 +1808,11 @@ class PowerVCCloudManager(manager.Manager):
         @exception_swallowed
         def sync_flavor():
             fl = flavorsync.FlavorSync(self.driver,
-                                  self.scg_id_list)
+                                       self.scg_id_list)
             fl.synchronize_flavors(context)
         flavor_call = loopingcall.FixedIntervalLoopingCall(sync_flavor)
         flavor_call.start(interval=flavor_interval,
                           initial_delay=flavor_interval)
-
 
     def get_default_image(self, context):
         """
