@@ -665,6 +665,30 @@ class PowerVCDriver(driver.ComputeDriver):
         :param disk: Instance disk information, if doing block migration
         :param migrate_data: implementation specific data dict.
         """
+
+        # Get the latest instance information from powervc and
+        # validate its safe to request a live migration.
+        meta = instance_ref.get('metadata')
+        lpar_instance = self.get_instance(meta['pvc_id'])
+
+        if lpar_instance is None:
+            reason = (_("Unable to migrate uuid:%s."
+                        "Unable to retrieve powerVC instance.")
+                      % instance_ref['uuid'])
+            raise exception.MigrationPreCheckError(reason=reason)
+
+        server_dict = lpar_instance.__dict__
+        valid = (self._service._is_live_migration_valid(
+                 server_dict['status'], server_dict['health_status']))
+        if not valid:
+            reason = (_("Unable to migrate uuid:%s ."
+                        "PowerVC validation failed, please verify instance "
+                        "is active and health status is OK. "
+                        "If the RMC connection to the HMC is not active, live "
+                        "migration can not be attempted.")
+                      % instance_ref['uuid'])
+            raise exception.MigrationPreCheckError(reason=reason)
+
         return {}
 
     def pre_block_migration(self, ctxt, instance_ref, disk_info):
@@ -768,30 +792,9 @@ class PowerVCDriver(driver.ComputeDriver):
         :param disk_over_commit: if true, allow disk over commit
         :returns: a dict containing migration info (hypervisor-dependent)
         """
-        # Get the latest instance information from powervc and
-        # validate its safe to request a live migration.
-        meta = instance_ref.get('metadata')
-        lpar_instance = self.get_instance(meta['pvc_id'])
-
-        if lpar_instance is None:
-            reason = (_("Unable to migrate uuid:%s to host %s: "
-                        "Unable to retrieve powerVC instance.")
-                      % (instance_ref['uuid'],
-                         dst_compute_info['hypervisor_hostname']))
-            raise exception.MigrationPreCheckError(reason=reason)
-
-        server_dict = lpar_instance.__dict__
-        valid = (self._service._is_live_migration_valid(
-                 server_dict['status'], server_dict['health_status']))
-        if not valid:
-            reason = (_("Unable to migrate uuid:%s to host %s: "
-                        "PowerVC validation failed, please verify instance "
-                        "is active and health status is OK. "
-                        "If the RMC connection to the HMC is not active, live "
-                        "migration can not be attempted.")
-                      % (instance_ref['uuid'],
-                         dst_compute_info['hypervisor_hostname']))
-            raise exception.MigrationPreCheckError(reason=reason)
+        # Remove the corresponding source codes for the nova component
+        # does not catch the exceptions thrown by this method and do
+        # the corresponding roll back operations.
 
         # PowerVC driver does not support block migration or disk over
         # commit. Let our callers know with failure.
