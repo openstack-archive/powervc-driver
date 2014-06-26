@@ -1,5 +1,7 @@
 # Copyright 2013 IBM Corp.
 
+import time
+import logging
 import powervc.common.client.service as service
 from powervc.common.client.config import CONF as CONF
 from powervc.common.client.config import OS_OPTS as OS_OPTS
@@ -36,14 +38,43 @@ Get a reference to keystone client for PowerVC:
 # global access to local openstack and powervc services
 LOCAL = None
 POWERVC = None
+LOG = logging.getLogger(__name__)
 
+
+def initialize_local_servicecatalog():
+    global LOCAL
+    if LOCAL:
+        return
+
+    def new_local_servicecatalog():
+        LOG.info(_("start to new local keystone client"))
+        keystone_version = CONF['openstack']['keystone_version']
+        keystone = service.KeystoneService(str(SERVICE_TYPES.identity),
+                                           keystone_version,
+                                           OS_OPTS['auth_url'], OS_OPTS,
+                                           None).new_client()
+        servicecatalog = service.ClientServiceCatalog(OS_OPTS, keystone)
+        LOG.info(_("finish to new local keystone client"))
+        return servicecatalog
+
+    count = 0
+    while count < CONF['openstack']['keystone_max_try_times']:
+        try:
+            if LOCAL:
+                return
+            LOCAL = new_local_servicecatalog()
+            return
+        except Exception, e:
+            LOG.info(_("Keystone service is not ready. " + str(e)))
+            count += 1
+            if count == CONF['openstack']['keystone_max_try_times']:
+                LOG.error(_("Keystone service is not ready eventually after"
+                            " retries!"))
+                raise e
+            time.sleep(CONF['openstack']['keystone_retry_interval'])
 
 if LOCAL is None:
-    keystone = service.KeystoneService(str(SERVICE_TYPES.identity),
-                                       CONF['openstack']['keystone_version'],
-                                       OS_OPTS['auth_url'], OS_OPTS,
-                                       None).new_client()
-    LOCAL = service.ClientServiceCatalog(OS_OPTS, keystone)
+    initialize_local_servicecatalog()
 
 if POWERVC is None:
     keystone_opts = PVC_OPTS.copy()
