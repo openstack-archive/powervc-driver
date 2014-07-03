@@ -13,7 +13,7 @@ import itertools
 from operator import itemgetter
 import HTMLParser
 
-from glance.openstack.common import service
+from powervc.common import service
 from glance.openstack.common import log as logging
 from glance.openstack.common import timeutils
 from glanceclient.v1 import images as v1images

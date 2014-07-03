@@ -29,7 +29,7 @@ gettextutils.install('glance')
 
 from powervc.glance.common import config
 from glance.openstack.common import log
-from glance.openstack.common import service
+from powervc.common import service
 from glance.openstack.common import importutils
 
 CONF = config.CONF
