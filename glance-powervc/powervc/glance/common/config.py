@@ -29,8 +29,15 @@ image_opts = [
 
 CONF.register_opts(image_opts, group='powervc')
 
-# Import glance opts
-CONF.import_opt('owner_is_tenant', 'glance.api.middleware.context')
+"""
+Refer to the file glance/api/middleware/context.py , register the config
+option named 'owner_is_tenant' to default group.
+"""
+CONF.register_opt(cfg.BoolOpt('owner_is_tenant', default=True,
+                              help=_('When true, this option sets the owner of '
+                                     'an image to be the tenant. Otherwise, the'
+                                     ' owner of the image will be the '
+                                     'authenticated user issuing the request.')))
 
 
 def parse_config(*args, **kwargs):
