@@ -724,7 +724,14 @@ class Utils(object):
         stagingname = CONF.powervc.staging_project_name or \
             constants.DEFAULT_STAGING_PROJECT_NAME
         try:
-            for tenant in ks_client.tenants.list():
+            projects = []
+            if hasattr(ks_client, 'tenants'):
+                # For keystone V2
+                projects = ks_client.tenants.list()
+            elif hasattr(ks_client, 'projects'):
+                # For keystone V3
+                projects = ks_client.projects.list()
+            for tenant in projects:
                 projectname = tenant.name
                 projectid = tenant.id
                 if projectname == stagingname:
