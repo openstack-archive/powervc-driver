@@ -18,7 +18,7 @@ import os
 import time
 from exceptions import KeyboardInterrupt
 
-from neutron.openstack.common import rpc
+from neutron.common import rpc
 from neutron.openstack.common import log as logging
 
 from oslo.config import cfg
@@ -788,12 +788,12 @@ class PowerVCNeutronAgent(object):
         """
         set up RPC support
         """
+        rpc.init(CONF)
         self.topic = PVC_TOPIC
         self.conn = rpc.create_connection(new=True)
-        self.callbacks = powervc_rpc.PVCRpcCallbacks(self)
-        self.dispatcher = self.callbacks.create_rpc_dispatcher()
-        self.conn.create_consumer(self.topic, self.dispatcher, fanout=False)
-        self.conn.consume_in_thread()
+        self.endpoints = [powervc_rpc.PVCRpcCallbacks(self)]
+        self.conn.create_consumer(self.topic, self.endpoints, fanout=False)
+        self.conn.consume_in_threads()
         LOG.info(_("RPC listener created"))
 
 #==============================================================================
