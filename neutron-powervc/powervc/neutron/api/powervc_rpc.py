@@ -1,7 +1,6 @@
 # Copyright 2013 IBM Corp.
 
 from neutron.openstack.common import log as logging
-from neutron.openstack.common.rpc import dispatcher
 
 from powervc.common.constants import LOCAL_OS
 from powervc.common.constants import POWERVC_OS
@@ -30,9 +29,6 @@ class PVCRpcCallbacks(object):
         super(PVCRpcCallbacks, self).__init__()
         self.agent = neutron_agent
         self.db = powervc_db_v2.PowerVCAgentDB()
-
-    def create_rpc_dispatcher(self):
-        return dispatcher.RpcDispatcher([self])
 
     def get_local_network_uuid(self, context, network_id):
         LOG.info(_("Neutron Agent RPC: get_local_network_uuid:"))
