@@ -52,6 +52,8 @@ FILE_OPTIONS = {
         cfg.BoolOpt('http_insecure', default=False),
         cfg.StrOpt('keystone_version', default="v3"),
         cfg.StrOpt('region_name', default=None),
+        cfg.IntOpt('keystone_max_try_times', default=30),
+        cfg.IntOpt('keystone_retry_interval', default=2),
         # Hosting OS Qpid connection info
         cfg.StrOpt('qpid_hostname'),
         cfg.IntOpt('qpid_port', default=5672),
