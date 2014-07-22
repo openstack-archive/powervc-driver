@@ -175,8 +175,8 @@ class PowerVCService(object):
             else:
                 vm_status_dict = {'vm_id': server.id,
                                   'state': pvc_vm_states.ACTIVE}
-                LOG.debug("Service: VM %(vm_id)s successfully rebooted. " \
-                    "Current status: %(state)s" % vm_status_dict)
+                LOG.debug("Service: VM %(vm_id)s successfully rebooted. "
+                          "Current status: %(state)s" % vm_status_dict)
                 raise loopingcall.LoopingCallDone(True)
 
     def _wait_for_resize_state_change(self, context, migration,
@@ -469,7 +469,7 @@ class PowerVCService(object):
         if (task_state == task_states.ACTIVATING):
             LOG.debug("The task status of the instance: %s"
                       % task_state)
-            reason = _("The instance in the task status: %s can not" \
+            reason = _("The instance in the task status: %s can not"
                        " be stopped."
                        % task_state)
             raise exception.InstanceUnacceptable(instance_id=server.id,

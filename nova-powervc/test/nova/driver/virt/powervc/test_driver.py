@@ -403,10 +403,10 @@ class PowerVCDriverTestCase(test.NoDBTestCase):
         pvc_driver.snapshot(context, instance, image_id,
                             update_task_state)
         update_task_state.assert_any_call(
-                            task_state=task_states.IMAGE_PENDING_UPLOAD)
+            task_state=task_states.IMAGE_PENDING_UPLOAD)
         update_task_state.assert_any_call(
-                            task_state=task_states.IMAGE_UPLOADING,
-                            expected_state=task_states.IMAGE_PENDING_UPLOAD)
+            task_state=task_states.IMAGE_UPLOADING,
+            expected_state=task_states.IMAGE_PENDING_UPLOAD)
 
     def tearDown(self):
         super(PowerVCDriverTestCase, self).tearDown()
@@ -459,10 +459,10 @@ class TestDriver(unittest.TestCase):
             _update_local_instance_by_pvc_created_instance = \
             mock.MagicMock()
         resultServer = self.powervc_driver.spawn(context,
-                                          instance,
-                                          image_meta,
-                                          injected_files,
-                                          admin_password)
+                                                 instance,
+                                                 image_meta,
+                                                 injected_files,
+                                                 admin_password)
         self.assertEquals(createFinished,
                           resultServer,
                           'success')
@@ -521,8 +521,8 @@ class TestDriver(unittest.TestCase):
                 'OS-EXT-STS:task_state', None)
         self.powervc_driver._service._manager.get = \
             mock.MagicMock(
-                    side_effect=[manager_get_server_from_instance,
-                    manager_get_server_from_destroy_instance])
+                side_effect=[manager_get_server_from_instance,
+                             manager_get_server_from_destroy_instance])
         self.powervc_driver._service._manager.delete = \
             mock.MagicMock()
         self.powervc_driver._service._validate_response = \
@@ -562,7 +562,7 @@ class TestDriver(unittest.TestCase):
         self.powervc_driver._service._manager.get = \
             mock.MagicMock(
                 side_effect=[manager_get_server_from_instance,
-                            manager_get_server_from_destroy_instance])
+                             manager_get_server_from_destroy_instance])
         self.powervc_driver._service._manager.delete = mock.MagicMock()
         self.powervc_driver._service._validate_response = mock.MagicMock()
         self.assertRaises(exception.InstanceTerminationFailure,

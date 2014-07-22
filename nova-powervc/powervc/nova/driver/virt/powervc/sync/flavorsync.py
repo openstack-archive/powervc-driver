@@ -4,6 +4,7 @@ import re
 from eventlet import greenthread
 
 import powervc.common.config as cfg
+from powervc.common.gettextutils import _
 from nova.compute import flavors
 from nova import exception
 from nova import db

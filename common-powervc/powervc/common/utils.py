@@ -361,11 +361,13 @@ class Utils(object):
         if not scg:
             # If no scg, then it's a IVM based PowerVC,
             # return all servers
-            return self._novaclient.manager.list_all_servers(detailed, search_opts)
+            return self._novaclient.manager.list_all_servers(
+                detailed, search_opts)
 
         # accessible_storage_servers to return
         accessible_storage_servers = []
-        all_servers = self._novaclient.manager.list_all_servers(detailed, search_opts)
+        all_servers = self._novaclient.manager.list_all_servers(
+            detailed, search_opts)
 
         # Filter the servers for the SCG
         for server in all_servers:
@@ -566,7 +568,7 @@ class Utils(object):
             # If no scg, then it's a IVM based PowerVC,
             # return all volumes
             return (self._cinderclient.volume_types.
-                        list_all_storage_templates())
+                    list_all_storage_templates())
 
         # accessible_storage_templates to return
         accessible_storage_templates = []

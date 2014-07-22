@@ -7,6 +7,7 @@ from powervc.common.client.config import CONF as CONF
 from powervc.common.client.config import OS_OPTS as OS_OPTS
 from powervc.common.client.config import PVC_OPTS as PVC_OPTS
 from powervc.common.constants import SERVICE_TYPES as SERVICE_TYPES
+from powervc.common.gettextutils import _
 
 """sample useage
 
@@ -47,14 +48,14 @@ def initialize_local_servicecatalog():
         return
 
     def new_local_servicecatalog():
-        LOG.info(_("start to new local keystone client"))
+        LOG.info(_('start to new local keystone client'))
         keystone_version = CONF['openstack']['keystone_version']
         keystone = service.KeystoneService(str(SERVICE_TYPES.identity),
                                            keystone_version,
                                            OS_OPTS['auth_url'], OS_OPTS,
                                            None).new_client()
         servicecatalog = service.ClientServiceCatalog(OS_OPTS, keystone)
-        LOG.info(_("finish to new local keystone client"))
+        LOG.info(_('finish to new local keystone client'))
         return servicecatalog
 
     count = 0
@@ -65,11 +66,11 @@ def initialize_local_servicecatalog():
             LOCAL = new_local_servicecatalog()
             return
         except Exception, e:
-            LOG.info(_("Keystone service is not ready. " + str(e)))
+            LOG.info(_('Keystone service is not ready. ' + str(e)))
             count += 1
             if count == CONF['openstack']['keystone_max_try_times']:
-                LOG.error(_("Keystone service is not ready eventually after"
-                            " retries!"))
+                LOG.error(_('Keystone service is not ready eventually after'
+                            ' retries!'))
                 raise e
             time.sleep(CONF['openstack']['keystone_retry_interval'])
 

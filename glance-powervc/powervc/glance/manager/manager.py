@@ -1403,7 +1403,8 @@ class PowerVCImageManager(service.Service):
             field_dict, update_field_dict = self._get_v1image_create_fields(
                 src_image, image_owner, image_endpoint)
             # Community fix needs the property 'checksum' must be set
-            field_dict['checksum'] = self._get_image_checksum(src_image.to_dict())
+            field_dict['checksum'] = self._get_image_checksum(
+                src_image.to_dict())
             new_image = v1images.create(**field_dict)
             updated_image = None
             if len(update_field_dict) > 0:

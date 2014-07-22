@@ -6,6 +6,7 @@ PowerVC Driver ImageManager Configuration
 
 from oslo.config import cfg
 import powervc.common.config as common_config
+from powervc.common.gettextutils import _
 from powervc.glance.common import constants
 
 CONF = common_config.CONF
@@ -33,11 +34,12 @@ CONF.register_opts(image_opts, group='powervc')
 Refer to the file glance/api/middleware/context.py , register the config
 option named 'owner_is_tenant' to default group.
 """
-CONF.register_opt(cfg.BoolOpt('owner_is_tenant', default=True,
-                              help=_('When true, this option sets the owner of '
-                                     'an image to be the tenant. Otherwise, the'
-                                     ' owner of the image will be the '
-                                     'authenticated user issuing the request.')))
+CONF.register_opt(
+    cfg.BoolOpt('owner_is_tenant', default=True,
+                help=_('When true, this option sets the owner of '
+                       'an image to be the tenant. Otherwise, the'
+                       ' owner of the image will be the '
+                       'authenticated user issuing the request.')))
 
 
 def parse_config(*args, **kwargs):

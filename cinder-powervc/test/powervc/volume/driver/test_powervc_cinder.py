@@ -72,11 +72,11 @@ class PowerVCDriverTestCase(unittest.TestCase):
         volume = Volume(vol)
         # fake volume after call creating volume from pvc
         ret_vol_after_created = {'id': 4321,
-                   'status': 'creating'}
+                                 'status': 'creating'}
         ret_volume_after_created = Volume(ret_vol_after_created)
         # fake volume after call get volume from pvc
         ret_vol_get = {'id': 4321,
-                   'status': 'available'}
+                       'status': 'available'}
         ret_volume_get = Volume(ret_vol_get)
 
         # mock create volume restAPI
@@ -90,8 +90,8 @@ class PowerVCDriverTestCase(unittest.TestCase):
 
         dic = self.powervc_cinder_driver.create_volume(volume)
         self.assertEqual({'status': 'available',
-                                       'metadata': {'pvc:id': 4321}},
-                                      dic, "return vol doesn't match")
+                          'metadata': {'pvc:id': 4321}},
+                         dic, "return vol doesn't match")
 
     def test_create_volume_failed(self):
         # local volume passed to driver
@@ -100,11 +100,11 @@ class PowerVCDriverTestCase(unittest.TestCase):
         volume = Volume(vol)
         # fake volume after call creating volume from pvc
         ret_vol_after_created = {'id': 4321,
-                   'status': 'creating'}
+                                 'status': 'creating'}
         ret_volume_after_created = Volume(ret_vol_after_created)
         # fake volume after call get volume from pvc
         ret_vol_get = {'id': 4321,
-                   'status': 'error'}
+                       'status': 'error'}
         ret_volume_get = Volume(ret_vol_get)
 
         # mock create volume restAPI
@@ -119,7 +119,7 @@ class PowerVCDriverTestCase(unittest.TestCase):
         dic = self.powervc_cinder_driver.create_volume(volume)
         self.assertEqual({'status': 'error',
                           'metadata': {'pvc:id': 4321}},
-                          dic, "return vol doesn't match")
+                         dic, "return vol doesn't match")
 
     def test_create_volume_not_found(self):
         # local volume passed to driver
@@ -128,11 +128,11 @@ class PowerVCDriverTestCase(unittest.TestCase):
         volume = Volume(vol)
         # fake volume after call creating volume from pvc
         ret_vol_after_created = {'id': 4321,
-                   'status': 'creating'}
+                                 'status': 'creating'}
         ret_volume_after_created = Volume(ret_vol_after_created)
         # fake volume after call get volume from pvc
         ret_vol_get = {'id': 4321,
-                   'status': 'error'}
+                       'status': 'error'}
         ret_volume_get = Volume(ret_vol_get)
 
         # mock create volume restAPI
@@ -149,8 +149,8 @@ class PowerVCDriverTestCase(unittest.TestCase):
 
         dic = self.powervc_cinder_driver.create_volume(volume)
         self.assertEqual({'status': 'error',
-                                       'metadata': {'pvc:id': 4321}},
-                                      dic, "return vol doesn't match")
+                          'metadata': {'pvc:id': 4321}},
+                         dic, "return vol doesn't match")
 
     def test_delete_volume_success(self):
         #fake volume which will be passed to driver service
@@ -169,7 +169,7 @@ class PowerVCDriverTestCase(unittest.TestCase):
         #mock rest API
         PowerVCService._client.volumes.get = \
             mock.MagicMock(side_effect=[existed_volume_get,
-                after_delete_volume_get])
+                                        after_delete_volume_get])
 
         self.powervc_cinder_driver.delete_volume(volume)
 
@@ -213,5 +213,5 @@ class PowerVCDriverTestCase(unittest.TestCase):
         ret_dic = self.powervc_cinder_driver.get_volume_stats(True)
 
         self.assertEqual(expected_ret_dic,
-                                      ret_dic,
-                                      "return stats should be matched")
+                         ret_dic,
+                         'return stats should be matched')

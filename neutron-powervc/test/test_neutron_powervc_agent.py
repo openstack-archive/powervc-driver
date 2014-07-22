@@ -62,7 +62,7 @@ class TestPowerVCNeutronAgent(unittest.TestCase):
 
         local_port = mock.MagicMock()
         local_port.get = mock.MagicMock(
-                                    return_value="network:router_interface")
+            return_value="network:router_interface")
 
         self.powervc_neutron_agent.pvc = mock.MagicMock()
         self.powervc_neutron_agent.pvc.create_port = mock.MagicMock()
@@ -93,8 +93,7 @@ class TestPowerVCNeutronAgent(unittest.TestCase):
 
         local_port = mock.MagicMock()
         local_port.get = mock.MagicMock(
-                            side_effect=[constants.STATUS_CREATING,
-                                         constants.STATUS_ACTIVE])
+            side_effect=[constants.STATUS_CREATING, constants.STATUS_ACTIVE])
         self.powervc_neutron_agent.db = mock.MagicMock()
         self.powervc_neutron_agent.db.get_port = mock.MagicMock(
             return_value=local_port)
@@ -112,8 +111,7 @@ class TestPowerVCNeutronAgent(unittest.TestCase):
 
         local_port = mock.MagicMock()
         local_port.get = mock.MagicMock(
-                            side_effect=[constants.STATUS_CREATING,
-                                         constants.STATUS_CREATING])
+            side_effect=[constants.STATUS_CREATING, constants.STATUS_CREATING])
         self.powervc_neutron_agent.db = mock.MagicMock()
         self.powervc_neutron_agent.db.get_port = mock.MagicMock(
             return_value=local_port)

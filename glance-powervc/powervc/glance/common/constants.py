@@ -39,7 +39,9 @@ IMAGE_UPDATE_PARAMS_FILTER = ['owner', 'location']
 IMAGE_UNESCAPE_PROPERTIES = ['configuration_strategy']
 
 # List of v2image update parameters to filter out
-v2IMAGE_UPDATE_PARAMS_FILTER = IMAGE_UPDATE_PARAMS_FILTER + ['deleted', 'size', 'checksum']
+v2IMAGE_UPDATE_PARAMS_FILTER = IMAGE_UPDATE_PARAMS_FILTER + ['deleted',
+                                                             'size',
+                                                             'checksum']
 
 # List of image properties to filter out during an update
 IMAGE_UPDATE_PROPERTIES_FILTER = [consts.POWERVC_UUID_KEY,

@@ -2,7 +2,6 @@
 
 import six
 import urllib
-import base64
 from novaclient import base as client_base
 from novaclient.v1_1 import servers
 from novaclient.v1_1 import hypervisors
@@ -10,7 +9,6 @@ from novaclient.v1_1 import images
 from novaclient.v1_1 import flavors
 from novaclient.v1_1 import volumes
 from novaclient.v1_1.volume_types import VolumeType
-from novaclient.openstack.common import strutils
 from powervc.common.client.extensions import base
 from powervc.common import utils
 import logging
@@ -91,7 +89,6 @@ class PVCServerManager(servers.ServerManager):
         if detailed:
             detail = "/detail"
         return self._list("/servers%s%s" % (detail, query_string), "servers")
-
 
     # This function was copied from (/usr/lib/python2.6/site-packages/
     # novaclient/v1_1/servers.py) before, but changes needed when activation
@@ -372,7 +369,7 @@ class StorageConnectivityGroupManager(client_base.Manager):
         """
         try:
             return self._list("/storage-connectivity-groups/%s/volumes"
-                             % scgUUID, "volumes", volumes.Volume)
+                              % scgUUID, "volumes", volumes.Volume)
         except Exception as e:
             LOG.error('A problem was encountered while getting a list of '
                       'accessible volumes for scg %s: %s '
@@ -387,7 +384,7 @@ class StorageConnectivityGroupManager(client_base.Manager):
         """
         try:
             return self._list("/storage-connectivity-groups/%s/volume-types"
-                             % scgUUID, "volume-types", VolumeType)
+                              % scgUUID, "volume-types", VolumeType)
         except Exception as e:
             LOG.error('A problem was encountered while getting a list of '
                       'accessible volume types for scg %s: %s '
