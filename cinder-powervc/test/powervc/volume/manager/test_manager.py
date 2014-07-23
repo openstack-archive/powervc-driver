@@ -43,6 +43,9 @@ class FakeVolume():
     def __init__(self):
         pass
 
+    def __dict__(self):
+        return None
+
     __dict__ = fake_volume
 
 
@@ -98,8 +101,11 @@ class Test(unittest.TestCase):
         fake_volume_instance = FakeVolume()
         self.manager._get_local_volume_by_pvc_id(fake_context, pvc_id)\
                     .AndReturn(None)
+        self.manager._insert_pvc_volume(fake_context, {}).AndReturn(None)
         self.manager._service.get_volume_by_id(volume_id)\
                     .AndReturn(fake_volume_instance)
+        self.manager._service.get_volumes()\
+                    .AndReturn([fake_volume_instance])
 
         self.moxer.ReplayAll()
 

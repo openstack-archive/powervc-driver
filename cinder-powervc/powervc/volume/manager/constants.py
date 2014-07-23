@@ -49,5 +49,5 @@ STATUS_ERROR = 'error'
 STATUS_CREATING = 'creating'
 STATUS_DELETING = 'deleting'
 
-#multi-backends configuration option for PowerVCDriver
+# multi-backends configuration option for PowerVCDriver
 BACKEND_POWERVCDRIVER = "powervcdriver"
