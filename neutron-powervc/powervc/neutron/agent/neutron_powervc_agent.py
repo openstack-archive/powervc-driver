@@ -109,9 +109,9 @@ class PowerVCNeutronAgent(object):
                                               self)
         self._setup_rpc()
 
-#==============================================================================
+# =============================================================================
 # Generate DB stats string
-#==============================================================================
+# =============================================================================
     def _generate_db_stats(self):
         net_creating, net_active, net_deleting = self.db.get_network_stats()
         sub_creating, sub_active, sub_deleting = self.db.get_subnet_stats()
