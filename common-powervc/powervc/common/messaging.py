@@ -462,7 +462,18 @@ class QpidListener(object):
         :returns: A dictionary containing the following keys:
             event_type, timestamp, message_id, priority, publisher_id, payload
         '''
-        content = raw_message.content
+        content_type = raw_message.content_type
+        if content_type == 'application/json; charset=utf8':
+            content = json.loads(raw_message.content)
+        elif content_type == 'amqp/map':
+            content = raw_message.content
+        else:
+            log(self.qpid_connection.log,
+                'warn',
+                _('Qpid listener received unsupported message: '
+                  '%s\nwith content_type %s') % (raw_message.content,
+                                                 content_type))
+            return None
         message = dict()
         for attr in ['event_type', 'timestamp', 'message_id', 'priority',
                      'publisher_id', 'payload']:
@@ -480,12 +491,17 @@ class QpidListener(object):
                 if self._has_more_messages():
                     raw_message = self._next_message()
                     message = self._resolve_message(raw_message)
+                    if message is None:
+                        continue
                     self._dispatch(message)
                 else:
                     break
             except ConnectionError, e:
-                log(self.qpid_connection.log, 'warning',
+                log(self.qpid_connection.log, 'warn',
                     _("Connection error: %s") % (e))
                 self.qpid_connection._is_connected = False
                 self.qpid_connection._reconnect()
                 break
+            except Exception, e:
+                log(self.qpid_connection.log, 'warn',
+                    _("Unknown error happens for event listener: %s") % (e))
