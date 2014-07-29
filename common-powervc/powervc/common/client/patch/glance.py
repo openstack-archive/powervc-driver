@@ -92,8 +92,8 @@ def patch_client(service_wrapper, client):
         url = '/v2/images/%s' % image_id
         hdrs = {'Content-Type': 'application/openstack-images-v2.1-json-patch'}
         http_client._request('PATCH', url,
-                                headers=hdrs,
-                                data=image.patch)
+                             headers=hdrs,
+                             data=image.patch)
 
         # NOTE(bcwaldon): calling image.patch doesn't clear the changes, so
         # we need to fetch the image again to get a clean history. This is
