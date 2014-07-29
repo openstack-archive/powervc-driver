@@ -9,7 +9,7 @@ def patch_client(service_wrapper, client):
     if hasattr(client, 'http_client'):
         http_client = client.http_client
 
-    org_http_request = http_client._http_request
+    org_http_request = http_client._request
 
     """
     Patch the _http_request method of glance client and inject
@@ -19,16 +19,10 @@ def patch_client(service_wrapper, client):
     """
     def _patched_http_request(url, method, **kwargs):
         # patch glance HTTPClient to use our keystone for tokens
-        # and support for non standard URLs
-        if http_client.endpoint_path and\
-                not http_client.endpoint_path.endswith('/'):
-            http_client.endpoint_path += '/'
         http_client.auth_token = service_wrapper.keystone.auth_token
         if url.startswith('/'):
             url = url[1:]
-        return org_http_request(url, method, **kwargs)
-
-    http_client._http_request = _patched_http_request
+        return org_http_request(method, url, **kwargs)
 
     def _patched_raw_request(method, url, **kwargs):
         '''
@@ -37,24 +31,24 @@ def patch_client(service_wrapper, client):
         Failure to do so can lead to errors during image updates and creates.
         '''
         kwargs.setdefault('headers', {})
-        if 'body' in kwargs:
-            if kwargs['body'] is None:
+        if 'data' in kwargs:
+            if kwargs['data'] is None:
                 kwargs['headers'].setdefault('Content-Type',
                                              'application/json')
             else:
                 kwargs['headers'].setdefault('Content-Type',
                                              'application/octet-stream')
-            if (hasattr(kwargs['body'], 'read')
+            if (hasattr(kwargs['data'], 'read')
                     and method.lower() in ('post', 'put')):
                 # We use 'Transfer-Encoding: chunked' because
-                # body size may not always be known in advance.
+                # data size may not always be known in advance.
                 kwargs['headers']['Transfer-Encoding'] = 'chunked'
         else:
             kwargs['headers'].setdefault('Content-Type',
                                          'application/json')
         return _patched_http_request(url, method, **kwargs)
 
-    http_client.raw_request = _patched_raw_request
+    http_client._request = _patched_raw_request
 
     """
     Patch v2 glanceclient controller for update image
@@ -97,9 +91,9 @@ def patch_client(service_wrapper, client):
 
         url = '/v2/images/%s' % image_id
         hdrs = {'Content-Type': 'application/openstack-images-v2.1-json-patch'}
-        http_client.raw_request('PATCH', url,
-                                headers=hdrs,
-                                body=image.patch)
+        http_client._request('PATCH', url,
+                             headers=hdrs,
+                             data=image.patch)
 
         # NOTE(bcwaldon): calling image.patch doesn't clear the changes, so
         # we need to fetch the image again to get a clean history. This is
