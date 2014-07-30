@@ -81,7 +81,7 @@ def patch_client(service_wrapper, client):
         if remove_props is not None:
             cur_props = image.keys()
             new_props = kwargs.keys()
-            #NOTE(esheffield): Only remove props that currently exist on the
+            # NOTE(esheffield): Only remove props that currently exist on the
             # image and are NOT in the properties being updated / added
             props_to_remove = set(cur_props).intersection(
                 set(remove_props).difference(new_props))
@@ -95,7 +95,7 @@ def patch_client(service_wrapper, client):
                                 headers=hdrs,
                                 data=image.patch)
 
-        #NOTE(bcwaldon): calling image.patch doesn't clear the changes, so
+        # NOTE(bcwaldon): calling image.patch doesn't clear the changes, so
         # we need to fetch the image again to get a clean history. This is
         # an obvious optimization for warlock
         return org_image_controller.get(image_id)
