@@ -572,7 +572,7 @@ class Utils(object):
 
         # accessible_storage_templates to return
         accessible_storage_templates = []
-        #filter out all the accessible storage template uuid
+        # filter out all the accessible storage template uuid
         volume_types = scg.list_all_volume_types()
         volume_type_ids = []
         for vol_type in volume_types:

@@ -5,6 +5,8 @@ from mock import patch
 import novaclient.tests.v1_1.test_servers as servers_testbox
 import novaclient.tests.v1_1.test_flavors as flavors_testbox
 import novaclient.tests.v1_1.test_hypervisors as hypervisors_testbox
+from novaclient.tests.fixture_data import client as fixture_client
+from novaclient.tests.fixture_data import servers as fixture_servers
 from novaclient.tests.v1_1 import fakes
 from novaclient.v1_1 import servers
 from novaclient.v1_1 import flavors
@@ -37,40 +39,36 @@ from powervc.common import utils as comm_utils
 """
 
 
-class PVCFakeClient(fakes.FakeClient):
+class PVCClientFixture(fixture_client.V1):
     """
         This PVCFakeClient class extends the current nova FakeClient,
         aiming to set the self.client variable to PVCFakeHTTPClient
     """
-    def __init__(self, *args, **kwargs):
-        fakes.FakeClient.__init__(self, *args, **kwargs)
-        self.client = PVCFakeHTTPClient(**kwargs)
+    def __init__(self, requests):
+        super(PVCClientFixture, self).__init__(requests)
+
+    def setUp(self):
+        super(PVCClientFixture, self).setUp()
+        self.client = delegate.new_composite_deletgate(
+            [ext_nova.Client(self.client), self.client])
 
 
-class PVCFakeHTTPClient(fakes.FakeHTTPClient):
-    """
-        This PVCFakeHTTPClient class extends the current nova FakeHTTPClient.
-        For all the HTTP requests in this class, it returns a fake json data
-        as specified beforehand instead of requesting to a real environment.
-    """
-    def __init__(self, **kwargs):
-        fakes.FakeHTTPClient.__init__(self, **kwargs)
+class PVCServersFixture(fixture_servers.V1):
 
-    def get_servers(self, **kw):
-        """
-            Override the parent method to a new powerVC specified server.
-        """
-        return (200, {}, {"servers": [
-            {'id': 1234, 'name': 'sample-server'},
-            {'id': 5678, 'name': 'powerVC sample-server'}
-        ]})
+    def setUp(self):
+        super(PVCServersFixture, self).setUp()
+        get_servers = {
+            "servers": [
+                {'id': 1234, 'name': 'sample-server'},
+                {'id': 5678, 'name': 'powerVC sample-server'}
+            ]
+        }
 
-    def get_servers_detail(self, **kw):
-        """
-            Override the parent method to specify powerVC specified server
-            detail.
-        """
-        return (200, {}, {"servers": [
+        self.requests.register_uri('GET', self.url(),
+                                   json=get_servers,
+                                   headers=self.json_headers)
+
+        get_servers_detail = {"servers": [
             {
                 "id": 1234,
                 "name": "sample-server",
@@ -167,7 +165,30 @@ class PVCFakeHTTPClient(fakes.FakeHTTPClient):
                     "Server Label": "DB 1"
                 }
             }
-        ]})
+        ]}
+        self.requests.register_uri('GET', self.url('detail'),
+                                   json=get_servers_detail,
+                                   headers=self.json_headers)
+
+
+class PVCFakeClient(fakes.FakeClient):
+    """
+        This PVCFakeClient class extends the current nova FakeClient,
+        aiming to set the self.client variable to PVCFakeHTTPClient
+    """
+    def __init__(self, *args, **kwargs):
+        fakes.FakeClient.__init__(self, *args, **kwargs)
+        self.client = PVCFakeHTTPClient(**kwargs)
+
+
+class PVCFakeHTTPClient(fakes.FakeHTTPClient):
+    """
+        This PVCFakeHTTPClient class extends the current nova FakeHTTPClient.
+        For all the HTTP requests in this class, it returns a fake json data
+        as specified beforehand instead of requesting to a real environment.
+    """
+    def __init__(self, **kwargs):
+        fakes.FakeHTTPClient.__init__(self, **kwargs)
 
     def get_flavors_detail(self, **kw):
         """
@@ -183,21 +204,15 @@ class PVCFakeHTTPClient(fakes.FakeHTTPClient):
              'OS-FLV-EXT-DATA:ephemeral': 20,
              'os-flavor-access:is_public': False,
              'links': {}},
+            {'id': 4, 'name': '1024 MB Server', 'ram': 1024, 'disk': 10,
+             'OS-FLV-EXT-DATA:ephemeral': 10,
+             'os-flavor-access:is_public': True,
+             'links': {}},
             {'id': 'aa1', 'name': 'PowerVC 128 MB Server', 'ram': 5120,
              'disk': 5678, 'OS-FLV-EXT-DATA:ephemeral': 0,
              'os-flavor-access:is_public': True,
              'links': {}}
         ]})
-
-    def get_os_hypervisors(self, **kw):
-        """
-            Override the parent method to specify powerVC specified hypervisors
-            detail.
-        """
-        return (200, {}, {"hypervisors": [
-                {'id': 1234, 'hypervisor_hostname': 'hyper1'},
-                {'id': 5678, 'hypervisor_hostname': 'hyper2'},
-                ]})
 
     def get_storage_connectivity_groups_f4b541cb_f418_4b4b_83b9_a8148650d4e9(
             self, **kw):
@@ -325,15 +340,12 @@ class PVCNovaServersTest(servers_testbox.ServersTest):
         ServersTest class to provide servers related UT cases.
     """
 
+    client_fixture_class = PVCClientFixture
+    data_fixture_class = PVCServersFixture
+
     def setUp(self):
         super(PVCNovaServersTest, self).setUp()
-        nova_fakeclient = PVCFakeClient('r', 'p', 's',
-                                        'http://localhost:5000/')
-        # delegate to nova extension class
-        nova_client = delegate.new_composite_deletgate(
-            [ext_nova.Client(nova_fakeclient), nova_fakeclient])
-
-        self.cs = nova_client
+        self.manager = ()
 
     def tearDown(self):
         super(PVCNovaServersTest, self).tearDown()
@@ -352,7 +364,7 @@ class PVCNovaServersTest(servers_testbox.ServersTest):
         """
         sl = self.cs.manager.list_all_servers()
         print sl
-        self.cs.assert_called('GET', '/servers/detail')
+        self.assert_called('GET', '/servers/detail')
         [self.assertTrue(isinstance(s, servers.Server)) for s in sl]
 
     def test_list_instance_storage_viable_hosts(self):
@@ -407,15 +419,10 @@ class PVCNovaHypervisorsTest(hypervisors_testbox.HypervisorsTest):
         HypervisorsTest class to provide hypervisors related UT cases.
     """
 
+    client_fixture_class = PVCClientFixture
+
     def setUp(self):
         super(PVCNovaHypervisorsTest, self).setUp()
-        nova_fakeclient = PVCFakeClient('r', 'p', 's',
-                                        'http://localhost:5000/')
-        # delegate to nova extension class
-        nova_client = delegate.new_composite_deletgate(
-            [ext_nova.Client(nova_fakeclient), nova_fakeclient])
-
-        self.cs = nova_client
 
     def tearDown(self):
         super(PVCNovaHypervisorsTest, self).tearDown()
@@ -464,7 +471,7 @@ class PVCNovaHypervisorsTest(hypervisors_testbox.HypervisorsTest):
 
         result = self.cs.hypervisors.list()
         print result
-        self.cs.assert_called('GET', '/os-hypervisors/detail')
+        self.assert_called('GET', '/os-hypervisors/detail')
 
         for idx, hyper in enumerate(result):
             self.compare_to_expected(expected[idx], hyper)
