@@ -11,10 +11,7 @@ from powervc.neutron.db import powervc_db_v2
 LOG = logging.getLogger(__name__)
 
 
-#==============================================================================
 # RPC callback
-#==============================================================================
-
 class PVCRpcCallbacks(object):
     """
     RPC callbacks for nova driver calling this agent.

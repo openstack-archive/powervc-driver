@@ -19,9 +19,7 @@ LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 
 
-#==============================================================================
 # Utility routines
-#==============================================================================
 
 def _compare_objects(local_obj, pvc_obj, db_obj,
                      update_fields, default_target):
@@ -280,4 +278,3 @@ def translate_port_id(db, port_id, target_os):
         if db_port:
             return db_port.get('pvc_id')
     return None
-

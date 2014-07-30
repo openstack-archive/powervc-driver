@@ -8,7 +8,7 @@ class Client(base.ClientExtension):
     def __init__(self, client):
         super(Client, self).__init__(client)
 
-###################Images functions##########################
+# Images functions
     def listImages(self):
         return [image for image in self.client.images.list()]
 
@@ -24,7 +24,7 @@ class Client(base.ClientExtension):
     def updateImage(self, image_id, **kwargs):
         return self.client.images.update(image_id, **kwargs)
 
-##################Image member functions#######################
+# Image member functions
     def listImageMembers(self, image_id):
         return [imageMember for imageMember in
                 self.client.image_members.list(image_id)]
@@ -39,7 +39,7 @@ class Client(base.ClientExtension):
     def createImageMember(self, image_id, member_id):
         return self.client.image_members.create(image_id, member_id)
 
-##################Image tag functions (v2 only)################
+# Image tag functions (v2 only)
     def updateImageTag(self, image_id, tag_value):
         if self.client_version == 2:
             return self.client.image_tags.update(image_id, tag_value)
