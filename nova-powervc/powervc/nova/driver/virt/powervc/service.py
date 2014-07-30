@@ -855,6 +855,13 @@ class PowerVCService(object):
         pvc_id = self._api.get_pvc_network_uuid(ctx, local_id)
         return pvc_id
 
+    def get_pvc_port_uuid(self, ctx, local_id):
+        """
+            Given a local port id, return a powerVC port id.
+        """
+        pvc_id = self._api.get_pvc_port_uuid(ctx, local_id)
+        return pvc_id
+
     def _get_instance_resize_properties(self, context, new_instance_type,
                                         server):
         """
