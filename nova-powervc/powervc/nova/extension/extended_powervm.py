@@ -37,8 +37,8 @@ class ExtendedPowerVMAttributesController(wsgi.Controller):
         if att in metadata:
             health_status['health_value'] = metadata[att]
             del metadata[att]
-        #TODO:Here can add other health_status property to construct
-        #dictionary data
+        # TODO:Here can add other health_status property to construct
+        # dictionary data
         server[key] = health_status
 
         for item in pvc_attrs:

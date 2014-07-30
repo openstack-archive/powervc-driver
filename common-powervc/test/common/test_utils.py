@@ -276,7 +276,7 @@ class PVCFakeNovaHTTPClient(novafakes.FakeHTTPClient):
                 ]
         })
 
-    def get_storage_connectivity_groups_f4b541cb_f418_4b4b_83b9_a8148650d4e9(
+    def get_storage_connectivity_groups_f4b541cb(
             self, **kw):
         """
         To get a fake detail storage_connectivity_group
@@ -315,8 +315,322 @@ class PVCFakeNovaHTTPClient(novafakes.FakeHTTPClient):
                               "created_at": "2013-08-23 14:56:11.787465",
                               "enabled": True,
                               "auto_defined": True,
-                              "id": "f4b541cb-f418-4b4b-83b9-a8148650d4e9"
+                              "id": "f4b541cb"
                           }})
+
+    def get_storage_connectivity_groups_sdfb541cb_volumes(
+            self, **kw):
+        """
+        To get a fake detail storage_connectivity_group
+        """
+        return (200, {}, {
+            "volumes": [
+                {
+                    "status": "available",
+                    "display_name": "abcabc",
+                    "attachments": [],
+                    "availability_zone": "nova",
+                    "bootable": False,
+                    "created_at": "2013-08-30T07:22:20.729677",
+                    "display_description": "None",
+                    "volume_type": "shared_v7000_1-default",
+                    "snapshot_id": "None",
+                    "source_volid": "None",
+                    "metadata": {},
+                    "id": "ab41ee79-0f84-4f0d-976e-0aa122c8b89d",
+                    "size": 1
+                },
+                {
+                    "status": "in-use",
+                    "display_name": "",
+                    "attachments": [
+                        {
+                            "host_name": "None",
+                            "device": "/dev/sda",
+                            "server_id":
+                            "103c1f3a-c2b2-4b90-80f8-cc2dd756b636",
+                            "id": "2eab9958-16e1-4559-b3e6-e723360a4f27",
+                            "volume_id":
+                            "2eab9958-16e1-4559-b3e6-e723360a4f27"
+                        }
+                    ],
+                    "availability_zone": "nova",
+                    "bootable": False,
+                    "created_at": "2013-08-30T03:33:06.272849",
+                    "os-vol-tenant-attr:tenant_id":
+                    "2ec48b8ec30f4328bf95b8a5ad147c4b",
+                    "display_description": "",
+                    "os-vol-host-attr:host": "shared_v7000_1",
+                    "health_status": {
+                        "health_value": "OK"
+                    },
+                    "volume_type": "None",
+                    "snapshot_id": "None",
+                    "source_volid": "5f7c7d0d-b4e1-4ebc-80d4-4f1e8734f7e5",
+                    "metadata": {
+                        "instance_uuid":
+                        "103c1f3a-c2b2-4b90-80f8-cc2dd756b636",
+                        "is_boot_volume": "True"
+                    },
+                    "id": "2eab9958",
+                    "size": 4
+                },
+                {
+                    "status": "in-use",
+                    "display_name": "",
+                    "attachments": [
+                        {
+                            "host_name": "None",
+                            "device": "/dev/sda",
+                            "server_id":
+                            "6a81591c-1671-43d1-b8c2-e0eb09cdab84",
+                            "id": "6c21891a-ce09-4701-98d7-1c8d0c6872cf",
+                            "volume_id": "6c21891a-ce09-4701-98d7-1c8d0c6872cf"
+                        }
+                    ],
+                    "availability_zone": "nova",
+                    "bootable": False,
+                    "created_at": "2013-08-30T03:32:30.922320",
+                    "os-vol-tenant-attr:tenant_id":
+                    "2ec48b8ec30f4328bf95b8a5ad147c4b",
+                    "display_description": "",
+                    "os-vol-host-attr:host": "shared_v7000_1",
+                    "health_status": {
+                        "health_value": "OK"
+                    },
+                    "volume_type": "None",
+                    "snapshot_id": "None",
+                    "source_volid": "5f7c7d0d-b4e1-4ebc-80d4-4f1e8734f7e5",
+                    "metadata": {
+                        "instance_uuid":
+                        "6a81591c-1671-43d1-b8c2-e0eb09cdab84",
+                        "is_boot_volume": "True"
+                    },
+                    "id": "6c21891a-ce09-4701-98d7-1c8d0c6872cf",
+                    "size": 4
+                },
+                {
+                    "status": "in-use",
+                    "display_name": "",
+                    "attachments": [
+                        {
+                            "host_name": "None",
+                            "device": "/dev/sda",
+                            "server_id":
+                            "57625362-279c-4e02-bc9c-c6035904b2f1",
+                            "id": "ff681131-9eab-4723-8261-6a80f8e3518d",
+                            "volume_id": "ff681131-9eab-4723-8261-6a80f8e3518d"
+                        }
+                    ],
+                    "availability_zone": "nova",
+                    "bootable": False,
+                    "created_at": "2013-08-30T03:32:03.243339",
+                    "os-vol-tenant-attr:tenant_id":
+                    "2ec48b8ec30f4328bf95b8a5ad147c4b",
+                    "display_description": "",
+                    "os-vol-host-attr:host": "shared_v7000_1",
+                    "health_status": {
+                        "health_value": "OK"
+                    },
+                    "volume_type": "None",
+                    "snapshot_id": "None",
+                    "source_volid": "5f7c7d0d-b4e1-4ebc-80d4-4f1e8734f7e5",
+                    "metadata": {
+                        "instance_uuid":
+                        "57625362-279c-4e02-bc9c-c6035904b2f1",
+                        "is_boot_volume": "True"
+                    },
+                    "id": "ff681131-9eab-4723-8261-6a80f8e3518d",
+                    "size": 4
+                }
+                ]
+        })
+
+    def get_storage_connectivity_groups_sdfb541cb_volume_types(
+            self, **kw):
+        """
+        To get a fake detail storage_connectivity_group
+        """
+        return (200, {}, {
+            "volume-types": [
+                {
+                    "extra_specs": {
+                        "drivers:storage_pool": "P-NGP01-pool",
+                        "capabilities:volume_backend_name": "shared_v7000_1",
+                        "drivers:rsize": "-1"
+                    },
+                    "name": "shared_v7000_1-default",
+                    "id": "6627888e-9f59-4996-8c22-5d528c3273f0"
+                },
+                {
+                    "extra_specs": {},
+                    "name": "dm-crypt",
+                    "id": "a3ae95f6-4aab-4446-b1d2-0fc2f60a89bb"
+                },
+                {
+                    "extra_specs": {},
+                    "name": "LUKS",
+                    "id": "291f81a2-591b-4164-b2b2-829abc935573"
+                }
+                ]
+        })
+
+    def get_storage_connectivity_groups_f4b541cb_volumes(
+            self, **kw):
+        """
+        To get a fake detail storage_connectivity_group
+        """
+        return (200, {}, {
+            "volumes": [
+                {
+                    "status": "available",
+                    "display_name": "abcabc",
+                    "attachments": [],
+                    "availability_zone": "nova",
+                    "bootable": False,
+                    "created_at": "2013-08-30T07:22:20.729677",
+                    "display_description": "None",
+                    "volume_type": "shared_v7000_1-default",
+                    "snapshot_id": "None",
+                    "source_volid": "None",
+                    "metadata": {},
+                    "id": "ab41ee79-0f84-4f0d-976e-0aa122c8b89d",
+                    "size": 1
+                },
+                {
+                    "status": "in-use",
+                    "display_name": "",
+                    "attachments": [
+                        {
+                            "host_name": "None",
+                            "device": "/dev/sda",
+                            "server_id":
+                            "103c1f3a-c2b2-4b90-80f8-cc2dd756b636",
+                            "id": "2eab9958-16e1-4559-b3e6-e723360a4f27",
+                            "volume_id":
+                            "2eab9958-16e1-4559-b3e6-e723360a4f27"
+                        }
+                    ],
+                    "availability_zone": "nova",
+                    "bootable": False,
+                    "created_at": "2013-08-30T03:33:06.272849",
+                    "os-vol-tenant-attr:tenant_id":
+                    "2ec48b8ec30f4328bf95b8a5ad147c4b",
+                    "display_description": "",
+                    "os-vol-host-attr:host": "shared_v7000_1",
+                    "health_status": {
+                        "health_value": "OK"
+                    },
+                    "volume_type": "None",
+                    "snapshot_id": "None",
+                    "source_volid": "5f7c7d0d-b4e1-4ebc-80d4-4f1e8734f7e5",
+                    "metadata": {
+                        "instance_uuid":
+                        "103c1f3a-c2b2-4b90-80f8-cc2dd756b636",
+                        "is_boot_volume": "True"
+                    },
+                    "id": "2eab9958",
+                    "size": 4
+                },
+                {
+                    "status": "in-use",
+                    "display_name": "",
+                    "attachments": [
+                        {
+                            "host_name": "None",
+                            "device": "/dev/sda",
+                            "server_id":
+                            "6a81591c-1671-43d1-b8c2-e0eb09cdab84",
+                            "id": "6c21891a-ce09-4701-98d7-1c8d0c6872cf",
+                            "volume_id": "6c21891a-ce09-4701-98d7-1c8d0c6872cf"
+                        }
+                    ],
+                    "availability_zone": "nova",
+                    "bootable": False,
+                    "created_at": "2013-08-30T03:32:30.922320",
+                    "os-vol-tenant-attr:tenant_id":
+                    "2ec48b8ec30f4328bf95b8a5ad147c4b",
+                    "display_description": "",
+                    "os-vol-host-attr:host": "shared_v7000_1",
+                    "health_status": {
+                        "health_value": "OK"
+                    },
+                    "volume_type": "None",
+                    "snapshot_id": "None",
+                    "source_volid": "5f7c7d0d-b4e1-4ebc-80d4-4f1e8734f7e5",
+                    "metadata": {
+                        "instance_uuid":
+                        "6a81591c-1671-43d1-b8c2-e0eb09cdab84",
+                        "is_boot_volume": "True"
+                    },
+                    "id": "6c21891a-ce09-4701-98d7-1c8d0c6872cf",
+                    "size": 4
+                },
+                {
+                    "status": "in-use",
+                    "display_name": "",
+                    "attachments": [
+                        {
+                            "host_name": "None",
+                            "device": "/dev/sda",
+                            "server_id":
+                            "57625362-279c-4e02-bc9c-c6035904b2f1",
+                            "id": "ff681131-9eab-4723-8261-6a80f8e3518d",
+                            "volume_id": "ff681131-9eab-4723-8261-6a80f8e3518d"
+                        }
+                    ],
+                    "availability_zone": "nova",
+                    "bootable": False,
+                    "created_at": "2013-08-30T03:32:03.243339",
+                    "os-vol-tenant-attr:tenant_id":
+                    "2ec48b8ec30f4328bf95b8a5ad147c4b",
+                    "display_description": "",
+                    "os-vol-host-attr:host": "shared_v7000_1",
+                    "health_status": {
+                        "health_value": "OK"
+                    },
+                    "volume_type": "None",
+                    "snapshot_id": "None",
+                    "source_volid": "5f7c7d0d-b4e1-4ebc-80d4-4f1e8734f7e5",
+                    "metadata": {
+                        "instance_uuid":
+                        "57625362-279c-4e02-bc9c-c6035904b2f1",
+                        "is_boot_volume": "True"
+                    },
+                    "id": "ff681131-9eab-4723-8261-6a80f8e3518d",
+                    "size": 4
+                }
+                ]
+        })
+
+    def get_storage_connectivity_groups_f4b541cb_volume_types(
+            self, **kw):
+        """
+        To get a fake detail storage_connectivity_group
+        """
+        return (200, {}, {
+            "volume-types": [
+                {
+                    "extra_specs": {
+                        "drivers:storage_pool": "P-NGP01-pool",
+                        "capabilities:volume_backend_name": "shared_v7000_1",
+                        "drivers:rsize": "-1"
+                    },
+                    "name": "shared_v7000_1-default",
+                    "id": "6627888e-9f59-4996-8c22-5d528c3273f0"
+                },
+                {
+                    "extra_specs": {},
+                    "name": "dm-crypt",
+                    "id": "a3ae95f6-4aab-4446-b1d2-0fc2f60a89bb"
+                },
+                {
+                    "extra_specs": {},
+                    "name": "LUKS",
+                    "id": "291f81a2-591b-4164-b2b2-829abc935573"
+                }
+                ]
+        })
 
     def get_storage_connectivity_groups(self, **kw):
         """
@@ -325,11 +639,11 @@ class PVCFakeNovaHTTPClient(novafakes.FakeHTTPClient):
         return (200, {}, {"storage_connectivity_groups": [
                 {
                     "display_name": "Auto-SCG for Registered SAN",
-                    "id": "f4b541cb-f418-4b4b-83b9-a8148650d4e9"
+                    "id": "f4b541cb"
                 },
                 {
                     "display_name": "SCG sample",
-                    "id": "sdfb541cb-f418-4b4b-3129-a814865023fs"
+                    "id": "sdfb541cb"
                 }
                 ]})
 
@@ -367,7 +681,7 @@ class PVCFakeNovaHTTPClient(novafakes.FakeHTTPClient):
                 "created_at": "2013-08-23 14:56:11.787465",
                 "enabled": True,
                 "auto_defined": True,
-                "id": "f4b541cb-f418-4b4b-83b9-a8148650d4e9"
+                "id": "f4b541cb"
                 },
             {
                 "auto_add_vios": True,
@@ -398,7 +712,7 @@ class PVCFakeNovaHTTPClient(novafakes.FakeHTTPClient):
                 "created_at": "2013-08-23 14:56:11.787465",
                 "enabled": True,
                 "auto_defined": True,
-                "id": "sdfb541cb-f418-4b4b-3129-a814865023fs"
+                "id": "sdfb541cb"
             }
         ]})
 
@@ -730,8 +1044,8 @@ class UtilsFakeTest(utils.TestCase):
         self.utils._cinderclient = cinder_client
         self.utils.scg_cache = SCGCache(nova_client)
 
-        self.scg_id_list = ['sdfb541cb-f418-4b4b-3129-a814865023fs',
-                            'f4b541cb-f418-4b4b-83b9-a8148650d4e9']
+        self.scg_id_list = ['sdfb541cb',
+                            'f4b541cb']
         self.scg_name_list = ['Auto-SCG for Registered SAN',
                               'SCG Sample']
 
@@ -756,7 +1070,7 @@ class UtilsFakeTest(utils.TestCase):
     def test_get_scg_accessible_storage_providers_1(self):
         accessible_storage_providers = \
             self.utils.get_scg_accessible_storage_providers(
-                "f4b541cb_f418_4b4b_83b9_a8148650d4e9")
+                "f4b541cb")
         self.assertEqual(accessible_storage_providers[0].storage_hostname,
                          "shared_v7000_1")
 
@@ -792,7 +1106,7 @@ class UtilsFakeTest(utils.TestCase):
     def test_get_scg_accessible_storage_templates_1(self):
         accessible_storage_templates = \
             self.utils.get_scg_accessible_storage_templates(
-                "f4b541cb_f418_4b4b_83b9_a8148650d4e9")
+                "f4b541cb")
         # Shoud return the storage template which in the accessible
         # storage providers
         self.assertEqual(accessible_storage_templates[0].name,
@@ -811,7 +1125,7 @@ class UtilsFakeTest(utils.TestCase):
     def test_get_scg_accessible_volumes_1(self):
         scg_accessible_volumes = \
             self.utils.get_scg_accessible_volumes(
-                "f4b541cb_f418_4b4b_83b9_a8148650d4e9")
+                "f4b541cb")
         # Shoud return the volume which in the accessible
         # storage templates
         self.assertEqual(scg_accessible_volumes[0].id,
@@ -864,7 +1178,7 @@ class UtilsFakeTest(utils.TestCase):
     def test_get_scg_id_by_scgName_1(self):
         scg_id = self.utils.\
             get_scg_id_by_scgName("Auto-SCG for Registered SAN")
-        self.assertEqual(scg_id, "f4b541cb-f418-4b4b-83b9-a8148650d4e9")
+        self.assertEqual(scg_id, "f4b541cb")
 
     def test_get_scg_id_by_scgName_2(self):
         scg_id = self.utils.\
