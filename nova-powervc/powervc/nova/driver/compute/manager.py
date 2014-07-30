@@ -292,10 +292,10 @@ class PowerVCCloudManager(manager.Manager):
         base_options, unused_image, unused_flavor = \
             self._translate_pvc_instance(context, pvc_instance, local_instance)
 
-        #In order to support the rename function in the Hosting OS, we will
-        #avoid the name of the instance is updated.
-        #In this situation, the name of the same instance will be different in
-        #the hosting OS and PowerVC.
+        # In order to support the rename function in the Hosting OS, we will
+        # avoid the name of the instance is updated.
+        # In this situation, the name of the same instance will be different in
+        # the hosting OS and PowerVC.
         base_options['display_name'] = local_instance.get('display_name')
 
         self.compute_api.update(context, local_instance, **base_options)
@@ -516,15 +516,15 @@ class PowerVCCloudManager(manager.Manager):
 
     def sync_volume_attachment(self, ctx, pvc_instance_id, local_instance):
         """Sync volume attachment information in BDM"""
-        #Since PowerVC server resp does not contain this info, it is needed now
-        #to retrieve it through sending another rest api to list
-        #volume attachments.
+        # Since PowerVC server resp does not contain this info, it is needed
+        # now to retrieve it through sending another rest api to list
+        # volume attachments.
         attachments = self.driver.list_os_attachments(pvc_instance_id)
         attached_volume_ids = []
         attached_devices = []
         for attachment in attachments:
-            #Each instance has a default volume,
-            #which is not what we want to show
+            # Each instance has a default volume,
+            # which is not what we want to show
             if attachment.device != '/dev/sda':
                 block_device_map = {}
                 vol_id = self.cache_volume.get_by_id(attachment.id)
@@ -547,7 +547,7 @@ class PowerVCCloudManager(manager.Manager):
                 block_device_map['destination_type'] = 'volume'
                 db_api.block_device_mapping_update_or_create(ctx,
                                                              block_device_map)
-        #Removing the BDMs are not in powervc
+        # Removing the BDMs are not in powervc
         leftover_bdms = []
         primitive_instance = obj_base.obj_to_primitive(local_instance)
         local_attachments = self.conductor_api.\
@@ -557,14 +557,14 @@ class PowerVCCloudManager(manager.Manager):
                 continue
             local_volume_id = local_attachment['volume_id']
             if local_volume_id in attached_volume_ids:
-                #this volume is still attached
+                # this volume is still attached
                 continue
             if local_volume_id == constants.INVALID_VOLUME_ID:
-                #for invalid volume id, just check the device_name
+                # for invalid volume id, just check the device_name
                 local_device_name = local_attachment['device_name']
                 if local_device_name in attached_devices:
-                    #this volume is still attached even it's
-                    #volume id is not valid
+                    # this volume is still attached even it's
+                    # volume id is not valid
                     LOG.info(_("retain the volume with device name: %s,  "
                                "although it's volume id is not valid "
                                "yet" % local_device_name))
@@ -627,7 +627,7 @@ class PowerVCCloudManager(manager.Manager):
             LOG.warning(_("Removing PowerVC instance %s in nova failed."),
                         local_instance.get('name'))
 
-        #delete network resource
+        # delete network resource
         self.network_api.deallocate_for_instance(ctx, local_instance)
 
         # Send notification about instance deletion due to sync operation
@@ -653,7 +653,7 @@ class PowerVCCloudManager(manager.Manager):
 
         # Get the uuid of pvc from the local instance.
         metadata = self.compute_api.get_instance_metadata(ctx, local_instance)
-        if not constants.PVC_ID in metadata:
+        if constants.PVC_ID not in metadata:
             return False
 
         local_uuid = metadata[constants.PVC_ID]
@@ -804,7 +804,7 @@ class PowerVCCloudManager(manager.Manager):
             rtn = self._get_pvc_flavor(ctx, pvc_flavor_id, local_flavorid)
 
         if rtn is None:
-            #Get the default flavor
+            # Get the default flavor
             rtn = flavors.get_default_flavor()
         return rtn
 
@@ -888,10 +888,10 @@ class PowerVCCloudManager(manager.Manager):
                             if rtn is None:
                                 for key in rtns.keys():
                                     if memory <= rtns[key].get('memory_mb')\
-                                        and vcpus <= rtns[key].get('vcpus')\
-                                        and root_gb <= rtns[key].\
+                                            and vcpus <= rtns[key].get('vcpus')\
+                                            and root_gb <= rtns[key].\
                                             get('root_gb')\
-                                        and ephemeral_gb <= rtns[key].\
+                                            and ephemeral_gb <= rtns[key].\
                                             get('ephemeral_gb'):
                                         rtn = rtns[key]
                                         LOG.info(_("Return the"
@@ -903,9 +903,9 @@ class PowerVCCloudManager(manager.Manager):
                                         break
                     except Exception:
                         if rtn is None:
-                            #Get the default flavor when can not get the
-                            #corresponding flavor with the specified
-                            #PowerVC instance
+                            # Get the default flavor when can not get the
+                            # corresponding flavor with the specified
+                            # PowerVC instance
                             LOG.info("Get the default flavor")
                             rtn = flavors.get_default_flavor()
 
@@ -1173,7 +1173,7 @@ class PowerVCCloudManager(manager.Manager):
             return
         vol_id = self.cache_volume.get_by_id(powervc_volume_id)
         if vol_id is None:
-            #get the local volume info and cache it
+            # get the local volume info and cache it
             LOG.debug(_("Get the local volume info for powervc volume with id:"
                         " %s") % powervc_volume_id)
             local_volume_id = self.driver.\
@@ -1181,7 +1181,7 @@ class PowerVCCloudManager(manager.Manager):
             LOG.debug(_("Finished to get the local volume info for powervc "
                         "volume with id: %s") % powervc_volume_id)
             if local_volume_id is None:
-                #continue to process, just log warning
+                # continue to process, just log warning
                 LOG.warning(_('volume does not exist locally for remote '
                             'volume: %s') % powervc_volume_id)
             else:
@@ -1283,10 +1283,10 @@ class PowerVCCloudManager(manager.Manager):
             self._translate_pvc_instance(context, powervc_instance,
                                          local_instance)
 
-        #In order to support the rename function in the Hosting OS, we will
-        #avoid the name of the instance is updated.
-        #In this situation, the name of the same instance will be different in
-        #the hosting OS and PowerVC.
+        # In order to support the rename function in the Hosting OS, we will
+        # avoid the name of the instance is updated.
+        # In this situation, the name of the same instance will be different in
+        # the hosting OS and PowerVC.
         updated_instance['display_name'] = local_instance.get('display_name')
 
         # Apply the VM and task state to the updated instance properties based
@@ -1422,7 +1422,7 @@ class PowerVCCloudManager(manager.Manager):
         # We only update the VM state for the following event types
         vm_state_events = [constants.EVENT_INSTANCE_POWER_ON,
                            constants.EVENT_INSTANCE_POWER_OFF]
-        if not event_type in vm_state_events:
+        if event_type not in vm_state_events:
             del updated_instance['vm_state']
 
         return updated_instance

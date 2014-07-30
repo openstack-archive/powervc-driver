@@ -16,10 +16,6 @@ LOG = logging.getLogger(__name__)
 class PowerVCAgentDB(object):
     """PowerVC Agent DB access methods"""
 
-#==============================================================================
-# Internal "object" methods
-#==============================================================================
-
     def __init__(self):
         self.session = db_api.get_session()
         db_api.configure_db()
@@ -235,10 +231,6 @@ class PowerVCAgentDB(object):
             LOG.warning(_("Object not found"))
             return None
 
-#==============================================================================
-# Network methods
-#==============================================================================
-
     def create_network(self, net, sync_key, local_id=None, pvc_id=None):
         return self._create_object(constants.OBJ_TYPE_NETWORK, sync_key,
                                    utils.gen_network_update_data(net),
@@ -268,10 +260,6 @@ class PowerVCAgentDB(object):
     def set_network_update_data(self, obj, update_data):
         return self._set_object_update_data(obj, update_data)
 
-#==============================================================================
-# Subnet methods
-#==============================================================================
-
     def create_subnet(self, sub, sync_key, local_id=None, pvc_id=None):
         return self._create_object(constants.OBJ_TYPE_SUBNET, sync_key,
                                    utils.gen_subnet_update_data(sub),
@@ -300,10 +288,6 @@ class PowerVCAgentDB(object):
 
     def set_subnet_update_data(self, obj, update_data):
         return self._set_object_update_data(obj, update_data)
-
-#==============================================================================
-# Port methods
-#==============================================================================
 
     def create_port(self, port, sync_key, local_id=None, pvc_id=None):
         return self._create_object(constants.OBJ_TYPE_PORT, sync_key,

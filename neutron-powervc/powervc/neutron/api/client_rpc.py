@@ -13,10 +13,7 @@ LOG = logging.getLogger(__name__)
 LIST_COLUMNS = ['status', 'local_id', 'pvc_id', 'sync_key']
 
 
-#==============================================================================
 # RPC client
-#==============================================================================
-
 class RpcClient(RpcProxy):
 
     BASE_RPC_API_VERSION = '1.0'

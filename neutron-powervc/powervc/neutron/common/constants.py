@@ -6,16 +6,11 @@ Created on Aug 2, 2013
 @author: John Kasperski
 '''
 
-#==============================================================================
 # Device owner value for Neutron ports we create
-#==============================================================================
 POWERVC_DEVICE_OWNER = 'network:IBM SmartCloud'
 RSVD_PORT_PREFIX = 'pvc:'
 
-#==============================================================================
 # Mapping enum values
-#==============================================================================
-
 OBJ_TYPE_NETWORK = 'Network'
 OBJ_TYPE_SUBNET = 'Subnet'
 OBJ_TYPE_PORT = 'Port'
@@ -26,10 +21,7 @@ STATUS_DELETING = 'Deleting'
 
 MAX_UPDATE_DATA_LENGTH = 512
 
-#==============================================================================
 # Neutron network fields (that we care about)
-#==============================================================================
-
 NETWORK_CREATE_FIELDS = ['name',
                          'shared',
                          'provider:network_type',
@@ -38,10 +30,7 @@ NETWORK_CREATE_FIELDS = ['name',
 NETWORK_UPDATE_FIELDS = ['name',
                          'shared']
 
-#==============================================================================
 # Neutron subnet fields (that we care about)
-#==============================================================================
-
 SUBNET_CREATE_FIELDS = ['name',
                         'ip_version',
                         'cidr',
@@ -54,19 +43,13 @@ SUBNET_UPDATE_FIELDS = ['name',
                         'dns_nameservers',
                         'enable_dhcp']
 
-#==============================================================================
 # Neutron port fields (that we care about)
-#==============================================================================
-
 PORT_CREATE_FIELDS = ['name',
                       'mac_address',
                       'device_owner']
 PORT_UPDATE_FIELDS = ['name']
 
-#==============================================================================
 # Qpid message handling
-#==============================================================================
-
 QPID_EXCHANGE = 'neutron'
 QPID_TOPIC = 'notifications.info'
 
