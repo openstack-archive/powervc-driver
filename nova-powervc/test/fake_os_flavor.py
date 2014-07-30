@@ -29,8 +29,9 @@ class FakeOSFlavor():
         self.os_flavor['name'] = "m1.small"
         self.os_flavor['memory_mb'] = 2048
         self.os_flavor['vcpus'] = 1
-        #FixMe Don't know what are proper values for the property "root_gb",
-        #"ephemeral_gb", "flavorid"
+        # FixMe Don't know what are proper values for the property "root_gb",
+        # "ephemeral_gb", "flavorid"
+        # Test for CI Jenkins
         self.os_flavor['root_gb'] = 0
         self.os_flavor['ephemeral_gb'] = 0
         self.os_flavor['flavorid'] = "fakeflavorid"

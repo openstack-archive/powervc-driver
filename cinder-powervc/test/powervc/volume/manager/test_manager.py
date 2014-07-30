@@ -46,7 +46,8 @@ class FakeVolume():
     def __dict__(self):
         return None
 
-    __dict__ = fake_volume
+    # Comment it because of unused and could not pass flake8
+    # __dict__ = fake_volume
 
 
 class FakePowerVCService(PowerVCService):
@@ -115,5 +116,5 @@ class Test(unittest.TestCase):
         self.moxer.VerifyAll()
 
 if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
+    # import sys;sys.argv = ['', 'Test.testName']
     unittest.main()
