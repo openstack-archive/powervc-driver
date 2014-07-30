@@ -153,20 +153,20 @@ class PowerVCDriverTestCase(unittest.TestCase):
                          dic, "return vol doesn't match")
 
     def test_delete_volume_success(self):
-        #fake volume which will be passed to driver service
+        # fake volume which will be passed to driver service
         vol_info = {'id': 1234,
                     'size': 1}
         volume = Volume(vol_info)
         setattr(volume, 'volume_metadata', [VolumeMetadataWithPVCID("1234")])
-        #fake existed volume
+        # fake existed volume
         existed_vol_info = {"status": 'available', 'id': 1234}
         existed_volume_get = Volume(existed_vol_info)
 
-        #fake volume after delete
+        # fake volume after delete
         after_delete_vol_info = {"status": '', 'id': 1234}
         after_delete_volume_get = Volume(after_delete_vol_info)
 
-        #mock rest API
+        # mock rest API
         PowerVCService._client.volumes.get = \
             mock.MagicMock(side_effect=[existed_volume_get,
                                         after_delete_volume_get])
@@ -174,7 +174,7 @@ class PowerVCDriverTestCase(unittest.TestCase):
         self.powervc_cinder_driver.delete_volume(volume)
 
     def test_delete_volume_no_powervc_attribute_error(self):
-        #fake volume which will be passed to driver service
+        # fake volume which will be passed to driver service
         vol_info = {'id': 1234, 'size': 1}
         volume = Volume(vol_info)
         self.assertRaises(AttributeError,
