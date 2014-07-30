@@ -109,9 +109,9 @@ class PowerVCNeutronAgent(object):
                                               self)
         self._setup_rpc()
 
-#==============================================================================
+# ==============================================================================
 # Generate DB stats string
-#==============================================================================
+# ==============================================================================
     def _generate_db_stats(self):
         net_creating, net_active, net_deleting = self.db.get_network_stats()
         sub_creating, sub_active, sub_deleting = self.db.get_subnet_stats()
@@ -127,9 +127,9 @@ class PowerVCNeutronAgent(object):
                                             port_deleting)
         return '(n:{0}, s:{1}, p:{2})'.format(stat_n, stat_s, stat_p)
 
-#==============================================================================
+# ==============================================================================
 # Handle network create
-#==============================================================================
+# ==============================================================================
 
     def _handle_local_network_create(self, network):
         net_id = network.get('id')
@@ -137,7 +137,7 @@ class PowerVCNeutronAgent(object):
         if db_net:
             LOG.info(_("DB entry for local network %s already exists"), net_id)
             return
-        #verify that if local network has no subnet, not handle it.
+        # verify that if local network has no subnet, not handle it.
         if not utils.network_has_subnet(network):
             # No subnet, but maybe one was created when this event was queued
             # up waiting to be processed.  Refresh with current network
@@ -204,9 +204,9 @@ class PowerVCNeutronAgent(object):
                 LOG.info(_("PowerVC network is not allowed: %s"),
                          network.get('name'))
 
-#==============================================================================
+# ==============================================================================
 # Handle network update
-#==============================================================================
+# ==============================================================================
 
     def _handle_local_network_update(self, network):
         net_id = network.get('id')
@@ -253,9 +253,9 @@ class PowerVCNeutronAgent(object):
         else:
             LOG.info(_("Network changes do not need to be updated"))
 
-#==============================================================================
+# ==============================================================================
 # Handle network delete
-#==============================================================================
+# ==============================================================================
 
     def _handle_local_network_delete(self, net_id):
         db_net = self.db.get_network(local_id=net_id)
@@ -296,9 +296,9 @@ class PowerVCNeutronAgent(object):
                 return
             self.db.delete_network(db_net)
 
-#==============================================================================
+# ==============================================================================
 # Handle subnet create
-#==============================================================================
+# ==============================================================================
 
     def _handle_local_subnet_create(self, subnet):
         local_id = subnet.get('id')
@@ -371,9 +371,9 @@ class PowerVCNeutronAgent(object):
             if new_sub:
                 self.db.set_subnet_local_id(db_sub, new_sub.get('id'))
 
-#==============================================================================
+# ==============================================================================
 # Handle subnet update
-#==============================================================================
+# ==============================================================================
 
     def _handle_local_subnet_update(self, subnet):
         local_id = subnet.get('id')
@@ -421,9 +421,9 @@ class PowerVCNeutronAgent(object):
         else:
             LOG.info(_("Subnet changes do not need to be updated"))
 
-#==============================================================================
+# ==============================================================================
 # Handle subnet delete
-#==============================================================================
+# ==============================================================================
 
     def _handle_local_subnet_delete(self, sub_id):
         db_sub = self.db.get_subnet(local_id=sub_id)
@@ -510,9 +510,9 @@ class PowerVCNeutronAgent(object):
         # No port left
         return False
 
-#==============================================================================
+# ==============================================================================
 # Handle port create
-#==============================================================================
+# ==============================================================================
 
     def _handle_local_port_create(self, port):
         local_id = port.get('id')
@@ -592,9 +592,9 @@ class PowerVCNeutronAgent(object):
         if new_port:
             self.db.set_port_local_id(db_port, new_port.get('id'))
 
-#==============================================================================
+# ==============================================================================
 # Handle port update
-#==============================================================================
+# ==============================================================================
 
     def _handle_local_port_update(self, port):
         local_id = port.get('id')
@@ -640,9 +640,9 @@ class PowerVCNeutronAgent(object):
         else:
             LOG.info(_("Port changes do not need to be updated"))
 
-#==============================================================================
+# ==============================================================================
 # Handle port delete
-#==============================================================================
+# ==============================================================================
 
     def _handle_local_port_delete(self, port_id):
         db_port = self.db.get_port(local_id=port_id)
@@ -737,9 +737,9 @@ class PowerVCNeutronAgent(object):
             return
         self.db.delete_port(db_port)
 
-#==============================================================================
+# ==============================================================================
 # Register handlers routines
-#==============================================================================
+# ==============================================================================
 
     def _register_handler(self, event_os, event_type, handler):
         key = event_type
@@ -747,9 +747,9 @@ class PowerVCNeutronAgent(object):
             key = event_os + ':' + event_type
         self.handlers[key] = handler
 
-#==============================================================================
+# ==============================================================================
 # Handle event
-#==============================================================================
+# ==============================================================================
 
     def _handle_event(self, event):
         event_os = event.get(constants.EVENT_OS)
@@ -769,9 +769,9 @@ class PowerVCNeutronAgent(object):
             return
         return handler(event_obj)
 
-#==============================================================================
+# ==============================================================================
 # Queue event for procesing by the daemon loop
-#==============================================================================
+# ==============================================================================
 
     def queue_event(self, event_os, event_type, event_obj):
         event = {}
@@ -780,9 +780,9 @@ class PowerVCNeutronAgent(object):
         event[constants.EVENT_OBJECT] = event_obj
         self.event_q.put(event)
 
-#==============================================================================
+# ==============================================================================
 # Setup RPC routine
-#==============================================================================
+# ==============================================================================
 
     def _setup_rpc(self):
         """
@@ -796,9 +796,9 @@ class PowerVCNeutronAgent(object):
         self.conn.consume_in_threads()
         LOG.info(_("RPC listener created"))
 
-#==============================================================================
+# ==============================================================================
 # Synchronize all Neutron objects
-#==============================================================================
+# ==============================================================================
 
     def _synchronize(self, default_target=LOCAL_OS):
         """Main synchronize routine"""
@@ -813,9 +813,9 @@ class PowerVCNeutronAgent(object):
         LOG.info(_("Full sync elapsed time: %s %s"), elapsed, db_stats)
         self.retry_sync = time.time() + self.polling_interval
 
-#==============================================================================
+# ==============================================================================
 # Synchronize networks
-#==============================================================================
+# ==============================================================================
 
     def _synchronize_networks(self, target=LOCAL_OS):
         pvc_nets = self.pvc.get_networks()
@@ -869,12 +869,12 @@ class PowerVCNeutronAgent(object):
             if db_net:
                 # DB entry for this local network already exists
                 continue
-            #if local network has no subnet, not handle it.
+            # if local network has no subnet, not handle it.
             if not utils.network_has_subnet(local_net):
                 LOG.info(_("Local network %s has no subnet"),
                          local_net.get('name'))
                 continue
-            #if local network has subnet, verify if the subnet is mappable
+            # if local network has subnet, verify if the subnet is mappable
             if not utils.network_has_mappable_subnet(self.local,
                                                      local_net):
                 LOG.info(_("Local network %s has no mappable subnet"),
@@ -951,9 +951,9 @@ class PowerVCNeutronAgent(object):
                     self.db.set_network_pvc_id(db_net, pvc_id)
                 continue
 
-#==============================================================================
+# ==============================================================================
 # Synchronize subnets
-#==============================================================================
+# ==============================================================================
 
     def _synchronize_subnets(self, target=LOCAL_OS):
         pvc_subnets = self.pvc.get_subnets()
@@ -1090,9 +1090,9 @@ class PowerVCNeutronAgent(object):
                     self.db.set_subnet_pvc_id(db_sub, pvc_id)
                 continue
 
-#==============================================================================
+# ==============================================================================
 # Synchronize ports
-#==============================================================================
+# ==============================================================================
 
     def _synchronize_ports(self, target=LOCAL_OS):
         pvc_ports = self.pvc.get_ports()
@@ -1281,9 +1281,9 @@ class PowerVCNeutronAgent(object):
                         self.db.set_port_pvc_id(db_port, pvc_id)
                 continue
 
-#==============================================================================
+# ==============================================================================
 # RPC methods
-#==============================================================================
+# ==============================================================================
 
     def set_device_id_on_port_by_pvc_instance_uuid(self,
                                                    db_api,
@@ -1317,9 +1317,9 @@ class PowerVCNeutronAgent(object):
                 LOG.debug(_("Set device_id for %s with %s"), pvc_id, device_id)
         return local_ids
 
-#==============================================================================
+# ==============================================================================
 # Main loop of the agent
-#==============================================================================
+# ==============================================================================
 
     def _process_event_queue(self):
         """Main loop for the agent"""
@@ -1363,9 +1363,9 @@ class PowerVCNeutronAgent(object):
                         # handling an event
                         pass
 
-#==============================================================================
+# ==============================================================================
 # Main loop of the agent
-#==============================================================================
+# ==============================================================================
 
     def daemon_loop(self):
         # Start a thread here to process the event queue. If the event queue
@@ -1391,9 +1391,9 @@ class PowerVCNeutronAgent(object):
         LOG.info(_("Worker thread is dead.  Exiting"))
 
 
-#==============================================================================
+# ==============================================================================
 # Main routine
-#==============================================================================
+# ==============================================================================
 
 def main():
     try:
