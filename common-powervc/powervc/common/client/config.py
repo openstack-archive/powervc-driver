@@ -28,7 +28,7 @@ def _build_base_http_opts(config_section, opt_map):
 # init client opts for powervc and openstack only once
 if OS_OPTS is None:
     OS_OPTS = _build_base_http_opts('openstack', {})
-    #support mulitple region on local openstack
+    # support multiple region on local openstack
     OS_OPTS['region_name'] = CONF['openstack']['region_name']
 if PVC_OPTS is None:
     PVC_OPTS = _build_base_http_opts('powervc', {})

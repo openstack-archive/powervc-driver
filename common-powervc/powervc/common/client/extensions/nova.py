@@ -21,7 +21,6 @@ class Client(base.ClientExtension):
     def __init__(self, client):
         super(Client, self).__init__(client)
         self.manager = PVCServerManager(client)
-        self.servers = servers
         self.hypervisors = hypervisors.HypervisorManager(client)
         self.images = images.ImageManager(client)
         self.flavors = flavors.FlavorManager(client)
@@ -157,13 +156,13 @@ class PVCServerManager(servers.ServerManager):
             body["server"]['hypervisor_hostname'] = kwargs["hypervisor"]
 
         if userdata:
-        # RTC/172018 -- start
-        # comment out the following, already done by local OS nova client
-        #    if hasattr(userdata, 'read'):
-        #       userdata = userdata.read()
+            # RTC/172018 -- start
+            # comment out the following, already done by local OS nova client
+            #    if hasattr(userdata, 'read'):
+            #       userdata = userdata.read()
 
-        #    userdata = strutils.safe_encode(userdata)
-        #    body["server"]["user_data"] = base64.b64encode(userdata)
+            #    userdata = strutils.safe_encode(userdata)
+            #    body["server"]["user_data"] = base64.b64encode(userdata)
             body["server"]["user_data"] = userdata
         # RTC/172018 -- end
         if meta:
@@ -198,7 +197,7 @@ class PVCServerManager(servers.ServerManager):
             personality = body['server']['personality'] = []
             # RTC/172018 -- start
             # comment out the following, already done by local OS nova client
-            #for filepath, file_or_string in files.items():
+            # for filepath, file_or_string in files.items():
             #    if hasattr(file_or_string, 'read'):
             #        data = file_or_string.read()
             #    else:
