@@ -46,8 +46,6 @@ class FakeVolume():
     def __dict__(self):
         return None
 
-    __dict__ = fake_volume
-
 
 class FakePowerVCService(PowerVCService):
     def __init__(self):
@@ -115,5 +113,5 @@ class Test(unittest.TestCase):
         self.moxer.VerifyAll()
 
 if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
+    # import sys;sys.argv = ['', 'Test.testName']
     unittest.main()

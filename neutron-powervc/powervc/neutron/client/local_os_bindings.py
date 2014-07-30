@@ -143,10 +143,6 @@ class Client(neutron_client_bindings.Client):
         port_id = payload.get('port_id')
         self.agent.queue_event(self.os, event, port_id)
 
-#==============================================================================
-# Local OS - Utility routines using other clients (Nova, Glance)
-#==============================================================================
-
     def get_power_vm_mapping(self):
         """
         Return dict with PowerVC to local instance uuid mappings

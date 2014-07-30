@@ -80,7 +80,7 @@ class TestPVCGlanceClient(unittest.TestCase):
         self.assertEqual(self.pvc_gc.
                          client.
                          images.
-                         api.calls,
+                         client.calls,
                          expect)
 
     def test_listImageMembers(self):
@@ -105,7 +105,7 @@ class TestPVCGlanceClient(unittest.TestCase):
              None)]
         self.moxer.VerifyAll()
         self.assertEqual(self.pvc_gc.client.image_members.
-                         api.calls,
+                         client.calls,
                          expect)
 
     def test_getImageFile(self):
