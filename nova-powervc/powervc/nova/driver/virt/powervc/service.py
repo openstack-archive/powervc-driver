@@ -538,7 +538,7 @@ class PowerVCService(object):
         # Check whether we can get the metadata from instance
         key = 'metadata'
         pvc_id = 0
-        if not key in instance:
+        if key not in instance:
             LOG.info(_('Could not find the metadata from the instance.'))
             server.id = pvc_id
             return server
@@ -559,7 +559,7 @@ class PowerVCService(object):
             server.id = self._get_pvcid_from_metadata(instance)
             return server
 
-        if metadatas == [] or not key in metadatas.keys():
+        if metadatas == [] or key not in metadatas.keys():
             LOG.info(_('Could not find the pvc_id from the metadata.'))
             server.id = pvc_id
             return server
@@ -651,7 +651,7 @@ class PowerVCService(object):
         # extract activation data from instance
         meta = instance._metadata
         key_name = instance.key_name
-        #key_data = instance.key_data
+        # key_data = instance.key_data
         config_drive = instance._config_drive
         userdata = instance.user_data   # already base64 encoded by local OS
 
@@ -1091,9 +1091,9 @@ class PowerVCService(object):
         image_name = image["name"]
         glance_image_service = glance.get_default_image_service()
 
-        #nova is going to pick up the uuid from the image the instance was
-        #deployed from.  We need to remove it to prevent treating this image
-        #as if it is the base deploy image
+        # nova is going to pick up the uuid from the image the instance was
+        # deployed from.  We need to remove it to prevent treating this image
+        # as if it is the base deploy image
         image_props = image["properties"]
         if common_constants.POWERVC_UUID_KEY in image_props:
             props = {'properties': {common_constants.POWERVC_UUID_KEY: None}}
@@ -1158,7 +1158,7 @@ class PowerVCService(object):
             pvc_server_dict = pvc_server.__dict__
             current_host = pvc_server_dict['OS-EXT-SRV-ATTR:host']
             LOG.debug(_('Original Host %s, Current Host %s') %
-                     (orig_host, current_host))
+                       (orig_host, current_host))
             if (pvc_server.status != pvc_vm_states.MIGRATING and
                     current_host != orig_host):
                 LOG.info(_("Instance %s completed migration.") % pvc_server.id)
