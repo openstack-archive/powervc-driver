@@ -49,8 +49,8 @@ class AbstractService(object):
 
     def _lookup_client(self):
         return importutils.import_class("%sclient.%s.client.Client" %
-                                       (self.base_name,
-                                        self.get_client_version()))
+                                        (self.base_name,
+                                         self.get_client_version()))
 
     def _lookup_extension(self):
         try:
@@ -319,7 +319,7 @@ class ClientServiceCatalog(object):
                     if 'status' in version_meta and \
                             version_meta['status'] == 'CURRENT':
                         ver = version_meta['id']
-                        if not ver in services:
+                        if ver not in services:
                             services[ver] = []
                         services[ver].append(self._filter_host(url))
                 return services
