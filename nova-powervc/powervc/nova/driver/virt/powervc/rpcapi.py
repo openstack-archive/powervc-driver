@@ -51,6 +51,14 @@ class NetworkAPI(object):
             self._cache[network_uuid] = pvc_id
         return pvc_id
 
+    def get_pvc_port_uuid(self, ctxt, port_uuid):
+        LOG.debug("local port-id is %s" % port_uuid)
+        kwargs = {}
+        kwargs['port_id'] = port_uuid
+        pvc_id = self.rpcclient.call(ctxt, 'get_pvc_port_uuid', **kwargs)
+        LOG.debug("PowerVC port-id is %s" % pvc_id)
+        return pvc_id
+
     def set_device_id_on_port_by_pvc_instance_uuid(self,
                                                    ctxt,
                                                    local_ins_id,

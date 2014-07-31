@@ -268,3 +268,16 @@ def translate_subnet_id(db, sub_id, target_os):
         if db_sub:
             return db_sub.get('pvc_id')
     return None
+
+
+def translate_port_id(db, port_id, target_os):
+    if target_os == LOCAL_OS:
+        db_port = db.get_port(pvc_id=port_id)
+        if db_port:
+            return db_port.get('local_id')
+    else:
+        db_port = db.get_port(local_id=port_id)
+        if db_port:
+            return db_port.get('pvc_id')
+    return None
+

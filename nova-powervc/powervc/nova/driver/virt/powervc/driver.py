@@ -247,6 +247,7 @@ class PowerVCDriver(driver.ComputeDriver):
 
         # get PowerVC network info
         pvc_nics = self._get_pvc_network_info(context, network_info)
+        LOG.debug("Spwan instance with NICs: %s" % pvc_nics)
 
         LOG.debug("Instance to spawn: %s" % instance)
         createdServer = None
@@ -1311,6 +1312,13 @@ class PowerVCDriver(driver.ComputeDriver):
                 raise exception.NetworkNotFoundForUUID(uuid=str(local_id))
 
             network['net-id'] = pvc_id
+
+            # map the local port id to PowerVC port id
+            local_port_id = network_info_iter.get('id')
+            pvc_port_id = self._service.get_pvc_port_uuid(context,
+                                                          local_port_id)
+            if pvc_port_id:
+                network['port-id'] = pvc_port_id
 
             # The v4-fixed-ip will be changed to the fixed-ip in the boot
             # method

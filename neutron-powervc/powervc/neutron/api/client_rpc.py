@@ -3,7 +3,8 @@
 from oslo.config import cfg
 from prettytable import PrettyTable
 
-from neutron.openstack.common.rpc import proxy
+from neutron.common.rpc import RpcProxy
+from neutron.common import rpc
 from neutron.openstack.common import log as logging
 
 from powervc.common.gettextutils import _
@@ -16,7 +17,7 @@ LIST_COLUMNS = ['status', 'local_id', 'pvc_id', 'sync_key']
 # RPC client
 #==============================================================================
 
-class RpcClient(proxy.RpcProxy):
+class RpcClient(RpcProxy):
 
     BASE_RPC_API_VERSION = '1.0'
 
@@ -25,6 +26,7 @@ class RpcClient(proxy.RpcProxy):
         self.topic = 'powervcrpc'
         self.context = context
         self.host = cfg.CONF.host
+        rpc.init(cfg.CONF)
         super(RpcClient, self).__init__(
             topic=self.topic, default_version=self.BASE_RPC_API_VERSION)
 
@@ -63,6 +65,14 @@ class RpcClient(proxy.RpcProxy):
         result = self.call(self.context,
                            self.make_msg('get_pvc_network_uuid',
                                          network_id=network_id),
+                           topic=self.topic)
+        print 'Result from RPC call:', result
+
+    def get_pvc_port_uuid(self, port_id):
+        LOG.debug(_('get_pvc_port_uuid'))
+        result = self.call(self.context,
+                           self.make_msg('get_pvc_port_uuid',
+                                         port_id=port_id),
                            topic=self.topic)
         print 'Result from RPC call:', result
 

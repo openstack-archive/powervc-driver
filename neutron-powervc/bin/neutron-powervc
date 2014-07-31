@@ -27,7 +27,7 @@ from powervc.neutron.api.client_rpc import RpcClient
 LOG = logging.getLogger(__name__)
 VALID_COMMANDS = ['net-list', 'subnet-list', 'port-list', 
                   'net-show', 'subnet-show', 'port-show',
-                  'get-local-net', 'get-pvc-net']
+                  'get-local-net', 'get-pvc-net', 'get-pvc-port']
 
 def usage():
     print 'Usage neutron-powervc'
@@ -44,6 +44,7 @@ def usage():
     print ''
     print '  get-local-net  <pvc id>      Retrieve local id for PVC network id'
     print '  get-pvc-net    <local id>    Retrieve PVC id for local network id'
+    print '  get-pvc-port    <local id>    Retrieve PVC id for local port id'
     print ''
     sys.exit(0)
 
@@ -101,6 +102,11 @@ def main():
                 usage()
             LOG.debug(_('Calling RPC method'))
             rpc.get_pvc_network_uuid(opt)
+        elif cmd == 'get-pvc-port':
+            if not opt:
+                usage()
+            LOG.debug(_('Calling RPC method'))
+            rpc.get_pvc_port_uuid(opt)
         else:
             usage()
         

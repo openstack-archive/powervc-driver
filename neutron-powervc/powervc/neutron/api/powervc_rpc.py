@@ -44,6 +44,13 @@ class PVCRpcCallbacks(object):
         LOG.info(_("- pvc_net_id: %s"), pvc_net_id)
         return pvc_net_id
 
+    def get_pvc_port_uuid(self, context, port_id):
+        LOG.info(_("Neutron Agent RPC: get_pvc_port_uuid:"))
+        LOG.info(_("- local_port_id: %s"), port_id)
+        pvc_port_id = utils.translate_port_id(self.db, port_id, POWERVC_OS)
+        LOG.info(_("- pvc_port_id: %s"), pvc_port_id)
+        return pvc_port_id
+
     def get_network(self, context, sync_key):
         LOG.info(_("Neutron Agent RPC: get_network:"))
         LOG.info(_("- sync_key: %s"), sync_key)
