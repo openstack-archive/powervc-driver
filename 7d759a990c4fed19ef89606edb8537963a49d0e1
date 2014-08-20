@@ -1,0 +1,8 @@
+Verified+2: Jenkins
+Code-Review+2: Le Tian Ren <renlet@cn.ibm.com>
+Workflow+1: Le Tian Ren <renlet@cn.ibm.com>
+Submitted-by: Jenkins
+Submitted-at: Wed, 20 Aug 2014 06:55:44 +0000
+Reviewed-on: https://review.openstack.org/115173
+Project: stackforge/powervc-driver
+Branch: refs/heads/master
