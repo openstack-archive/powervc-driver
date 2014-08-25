@@ -1,7 +1,10 @@
 # Copyright 2013 IBM Corp.
 
-from oslo.config import cfg
 from prettytable import PrettyTable
+
+from powervc.common import config
+
+from oslo.config import cfg
 
 from neutron.common.rpc import RpcProxy
 from neutron.common import rpc
@@ -26,7 +29,7 @@ class RpcClient(RpcProxy):
         self.topic = 'powervcrpc'
         self.context = context
         self.host = cfg.CONF.host
-        rpc.init(cfg.CONF)
+        rpc.init(config.AMQP_OPENSTACK_CONF)
         super(RpcClient, self).__init__(
             topic=self.topic, default_version=self.BASE_RPC_API_VERSION)
 
