@@ -19,6 +19,10 @@ from nova.openstack.common import gettextutils
 # This should go in the base __init__ folder I think
 gettextutils.install('nova')
 
+# NOTE: Import powervc driver common config at the very beginning to parse
+# AMQP.
+from powervc.common import config
+
 from powervc.nova.cmd.compute import main
 
 
