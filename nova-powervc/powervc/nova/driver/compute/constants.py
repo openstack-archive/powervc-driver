@@ -9,7 +9,7 @@ PVC_ID = "pvc_id"  # pvc instance uuid
 
 PPC64 = "ppc64"  # Found on the wiki
 
-#hypervisor type
+# hypervisor type
 PVM_HYPERVISOR_TYPE = "powervm"
 
 # Flavor constants
@@ -38,7 +38,7 @@ EVENT_INSTANCE_VOLUME_ATTACH = 'compute.instance.volume.attach'
 EVENT_INSTANCE_VOLUME_DETACH = 'compute.instance.volume.detach'
 EVENT_INSTANCE_IMPORT = 'compute.instance.import.end'
 
-#Volume id to to be updated by periodic sync
+# Volume id to to be updated by periodic sync
 INVALID_VOLUME_ID = '00000000-0000-0000-0000-000000000000'
 
 LOCAL_PVC_PREFIX = 'powervm:'

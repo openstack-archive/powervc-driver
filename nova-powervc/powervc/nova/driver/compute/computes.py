@@ -112,8 +112,8 @@ class ComputeServiceManager(object):
                                 for remote_service in remote_services]
             # First we kill the services for services no longer running
             for local_service_name in self.services.keys():
-                #calls to greenthread.sleep have been added to all of the
-                #loops in this class because it has been long running
+                # calls to greenthread.sleep have been added to all of the
+                # loops in this class because it has been long running
                 eventlet.greenthread.sleep(0)
                 if local_service_name in remote_hostnames:
                     LOG.debug("Service %s still running compute-service "
