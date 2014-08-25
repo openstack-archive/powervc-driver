@@ -13,6 +13,8 @@ import itertools
 from operator import itemgetter
 import HTMLParser
 
+from powervc.common import config
+
 from nova.openstack.common import service
 from nova.openstack.common import log as logging
 from nova.openstack.common import timeutils
@@ -26,10 +28,10 @@ from powervc.common.exception import StorageConnectivityGroupNotFound
 from powervc.common.gettextutils import _
 from powervc.common.client import factory as clients
 from powervc.glance.common import constants
-from powervc.glance.common import config
+from powervc.glance.common import config as glance_config
 from powervc.common import utils
 
-CONF = config.CONF
+CONF = glance_config.CONF
 
 LOG = logging.getLogger(__name__)
 
@@ -2326,7 +2328,7 @@ class PowerVCImageManager(service.Service):
 
             # See if the host is specified. If not, do not attempt to connect
             # and register the event handler
-            host = CONF['openstack'].qpid_hostname
+            host = config.AMQP_OPENSTACK_CONF.qpid_hostname
             if host and host is not None:
                 local_conn = messaging.LocalConnection(
                     reconnect_handler=local_event_reconnect_handler,
@@ -2375,7 +2377,7 @@ class PowerVCImageManager(service.Service):
 
             # See if the host is specified. If not, do not attempt to connect
             # and register the event handler
-            host = CONF['powervc'].qpid_hostname
+            host = config.AMQP_POWERVC_CONF.qpid_hostname
             if host and host is not None:
                 pvc_conn = messaging.PowerVCConnection(
                     reconnect_handler=pvc_event_reconnect_handler, log=logging)
