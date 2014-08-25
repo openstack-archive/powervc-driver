@@ -24,6 +24,10 @@ from cinder.openstack.common import gettextutils
 # This should go in the base __init__ folder I think
 gettextutils.install('cinder')
 
+# NOTE: Import powervc driver common config at the very beginning to parse
+# AMQP.
+from powervc.common import config
+
 from cinder import utils
 from cinder.openstack.common import log as logging
 # Currently cinder service uses threading instead of eventlet's event,
@@ -40,7 +44,6 @@ nova_common.log = logging
 from nova.openstack.common import service
 
 from cinder.common import config as cinder_config
-from powervc.common import config
 # NOTE: parse config before import manager
 config.parse_power_config(sys.argv, 'cinder')
 
@@ -60,7 +63,7 @@ if __name__ == '__main__':
         LOG.info(_('Launching PowerVC Driver StorageManager service...'))
         launcher = service.ServiceLauncher()
         launcher.launch_service(manager.PowerVCCinderManager())
-        launcher.wait()     
+        launcher.wait()
         LOG.info(_('PowerVC Driver StorageManager service ended'))
     except Exception:
         traceback.print_exc()

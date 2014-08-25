@@ -735,7 +735,8 @@ class PowerVCNeutronAgent(object):
         """
         set up RPC support
         """
-        rpc.init(CONF)
+        from powervc.common import config
+        rpc.init(config.AMQP_OPENSTACK_CONF)
         self.topic = PVC_TOPIC
         self.conn = rpc.create_connection(new=True)
         self.endpoints = [powervc_rpc.PVCRpcCallbacks(self)]
