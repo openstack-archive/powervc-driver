@@ -34,22 +34,20 @@ Examples:
   conn.start()
 """
 
+import fnmatch
+import json
 import sys
 import threading
 import traceback
-import fnmatch
-import json
 
 from time import sleep
 
 from qpid.messaging import Connection
 from qpid.messaging.exceptions import ConnectionError
 
-from oslo.config import cfg
+from powervc.common import config
 
 from powervc.common.gettextutils import _
-
-CONF = cfg.CONF
 
 
 def log(log, level, msg):
@@ -223,18 +221,18 @@ class PowerVCConnection(QpidConnection):
         :param: log The logging module used for logging messages. If not
                     provided then no logging will be done.
         """
-        if CONF.powervc.qpid_protocol == 'ssl':
+        if config.AMQP_POWERVC_CONF.qpid_protocol == 'ssl':
             transport = 'ssl'
         else:
             transport = 'tcp'
         super(PowerVCConnection,
-              self).__init__('%s:%d' % (CONF.powervc.qpid_hostname,
-                                        CONF.powervc.qpid_port),
-                             CONF.powervc.qpid_username,
-                             CONF.powervc.qpid_password,
-                             reconnect_handler=reconnect_handler,
-                             context=context, log=log,
-                             transport=transport)
+              self).__init__('%s:%d' % (
+                  config.AMQP_POWERVC_CONF.qpid_hostname,
+                  config.AMQP_POWERVC_CONF.qpid_port),
+                  config.AMQP_POWERVC_CONF.qpid_username,
+                  config.AMQP_POWERVC_CONF.qpid_password,
+                  reconnect_handler=reconnect_handler,
+                  context=context, log=log, transport=transport)
 
 
 class LocalConnection(QpidConnection):
@@ -257,18 +255,18 @@ class LocalConnection(QpidConnection):
         :param: log The logging module used for logging messages. If not
                     provided then no logging will be done.
         """
-        if CONF.openstack.qpid_protocol == 'ssl':
+        if config.AMQP_OPENSTACK_CONF.qpid_protocol == 'ssl':
             transport = 'ssl'
         else:
             transport = 'tcp'
         super(LocalConnection,
-              self).__init__('%s:%d' % (CONF.openstack.qpid_hostname,
-                                        CONF.openstack.qpid_port),
-                             CONF.openstack.qpid_username,
-                             CONF.openstack.qpid_password,
-                             reconnect_handler=reconnect_handler,
-                             context=context, log=log,
-                             transport=transport)
+              self).__init__('%s:%d' % (
+                  config.AMQP_OPENSTACK_CONF.qpid_hostname,
+                  config.AMQP_OPENSTACK_CONF.qpid_port),
+                  config.AMQP_OPENSTACK_CONF.qpid_username,
+                  config.AMQP_OPENSTACK_CONF.qpid_password,
+                  reconnect_handler=reconnect_handler,
+                  context=context, log=log, transport=transport)
 
 
 class QpidListener(object):

@@ -18,6 +18,10 @@ POSSIBLE_TOPDIR = os.path.normpath(os.path.join(
 if os.path.exists(os.path.join(POSSIBLE_TOPDIR, 'powervc', '__init__.py')):
     sys.path.insert(0, POSSIBLE_TOPDIR)
 
+# NOTE: Import powervc driver common config at the very beginning to parse
+# AMQP.
+from powervc.common import config
+
 from cinder.openstack.common import gettextutils
 
 # TODO RYKAL
@@ -28,7 +32,6 @@ from cinder import utils
 from cinder.openstack.common import log as logging
 from cinder.openstack.common import service
 from cinder.common import config as cinder_config
-from powervc.common import config
 # NOTE: parse config before import manager
 config.parse_power_config(sys.argv, 'cinder')
 
@@ -48,7 +51,7 @@ if __name__ == '__main__':
         LOG.info(_('Launching PowerVC Driver StorageManager service...'))
         launcher = service.ServiceLauncher()
         launcher.launch_service(manager.PowerVCCinderManager())
-        launcher.wait()     
+        launcher.wait()
         LOG.info(_('PowerVC Driver StorageManager service ended'))
     except Exception:
         traceback.print_exc()
