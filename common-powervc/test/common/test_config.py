@@ -33,7 +33,7 @@ class PVCConfigTest(testtools.TestCase):
             self.assertEqual(config.CONF.powervc.auth_url,
                              "http://localhost:5000/v2.0/")
             # value in file
-            self.assertEqual(config.CONF.powervc.qpid_port, 5679)
+            self.assertEqual(config.CONF.powervc.flavor_sync_interval, 300)
         finally:
             p1.stop()
 
@@ -53,7 +53,7 @@ class PVCConfigTest(testtools.TestCase):
             p2.start()
             config.parse_power_config([], "baseproject", None)
             # extend value in second file
-            self.assertEqual(config.CONF.powervc.qpid_username,
-                             "powervc_qpid_2")
+            self.assertEqual(config.CONF.volume_driver_ignore_delete_error,
+                             False)
         finally:
             p2.stop()
