@@ -369,7 +369,7 @@ class PowerVCDriver(driver.ComputeDriver):
     def get_console_pool_info(self, console_type):
         raise NotImplementedError()
 
-    def get_console_output(self, instance):
+    def get_console_output(self, context, instance):
         raise NotImplementedError()
 
     def get_vnc_console(self, instance):
