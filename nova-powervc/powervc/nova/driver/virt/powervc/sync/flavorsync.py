@@ -127,11 +127,21 @@ class FlavorSync():
         """
         Insert the flavor with extra specs if not in local database
         """
+        flavor_in_local_db = None
         flavor_name = self.prefix + flavor.name
         try:
-            db.flavor_get_by_name(ctx, flavor_name)
+            flavor_in_local_db = db.flavor_get_by_name(ctx, flavor_name)
         except exception.FlavorNotFoundByName:
             self._insert_pvc_flavor_extraspecs(ctx, flavor, extra_specs)
+        
+        # Update the extra_speces of the flavor
+        if flavor_in_local_db is not None:
+            flavor_id = flavor_in_local_db.get('flavorid','')
+            if (flavor_id is not '' and
+                    extra_specs):
+                self._update_flavor_extraspecs(ctx,
+                                               flavor_id,
+                                               extra_specs)
 
     def _check_for_extraspecs(self, flavor):
         """
