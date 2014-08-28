@@ -113,8 +113,11 @@ class PowerVCDriver(driver.ComputeDriver):
         """
         LOG.debug(_("get_info() Enter: %s" % str(instance)))
         lpar_instance = None
+        import pdb
+        pdb.set_trace()
         try:
             pvc_id = self._get_pvcid_from_metadata(instance)
+            raise exception.NotFound
             if pvc_id is None:
                 LOG.debug(_("Find pvc_id from DB"))
                 ctx = nova.context.get_admin_context()
@@ -125,9 +128,17 @@ class PowerVCDriver(driver.ComputeDriver):
             lpar_instance = self.get_instance(pvc_id)
             LOG.debug(_("Found instance: %s" % str(lpar_instance)))
         except Exception:
+            if pvc_id is None:
+                LOG.info(_("Can not get the pvc_id from the"
+                           " instance %s." %instance['name']))
+            else:
+                LOG.info(_("Can not get the lpar"
+                           " instance %s."  %pvc_id))
             raise exception.NotFound
 
         if(lpar_instance is None):
+            LOG.info(_("Can not get the lpar"
+                       " instance %s."  %pvc_id))
             raise exception.NotFound
 
         LOG.debug(_("get_info() Exit"))
