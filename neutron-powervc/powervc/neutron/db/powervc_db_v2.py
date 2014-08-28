@@ -1,5 +1,6 @@
-# Copyright 2013 IBM Corp.
+# Copyright 2013, 2014 IBM Corp.
 
+import sqlalchemy as sql
 from sqlalchemy.orm import exc
 
 import neutron.db.api as db_api
@@ -18,7 +19,15 @@ class PowerVCAgentDB(object):
 
     def __init__(self):
         self.session = db_api.get_session()
-        db_api.configure_db()
+        self.register_models()
+
+    def register_models(self):
+        """Register Models and create properties."""
+        try:
+            engine = db_api.get_engine()
+            model.PowerVCMapping.metadata.create_all(engine)
+        except sql.exc.OperationalError as e:
+            LOG.info(_("Database registration exception: %s"), e)
 
     def _create_object(self, obj_type, sync_key, update_data=None,
                        local_id=None, pvc_id=None):
