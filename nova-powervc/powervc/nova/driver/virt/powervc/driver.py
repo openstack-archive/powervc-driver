@@ -113,8 +113,6 @@ class PowerVCDriver(driver.ComputeDriver):
         """
         LOG.debug(_("get_info() Enter: %s" % str(instance)))
         lpar_instance = None
-        import pdb
-        pdb.set_trace()
         try:
             pvc_id = self._get_pvcid_from_metadata(instance)
             raise exception.NotFound
