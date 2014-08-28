@@ -125,9 +125,17 @@ class PowerVCDriver(driver.ComputeDriver):
             lpar_instance = self.get_instance(pvc_id)
             LOG.debug(_("Found instance: %s" % str(lpar_instance)))
         except Exception:
+            if pvc_id is None:
+                LOG.info(_("Can not get the pvc_id from the"
+                           " instance %s." % instance['name']))
+            else:
+                LOG.info(_("Can not get the lpar"
+                           " instance %s." % pvc_id))
             raise exception.NotFound
 
         if(lpar_instance is None):
+            LOG.info(_("Can not get the lpar"
+                       " instance %s." % pvc_id))
             raise exception.NotFound
 
         LOG.debug(_("get_info() Exit"))
