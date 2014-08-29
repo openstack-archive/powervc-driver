@@ -272,6 +272,18 @@ class PowerVCImageManager(service.Service):
                             self.ids_dict.pop(uuid)
                 else:
 
+                    """ Zhao Jian """
+                    pvc_image = pvc_image_dict[uuid]
+                    if pvc_image:
+                        image_topology_prop = \
+                            self._format_special_image_extra_property(uuid)
+                        image_properties = \
+                            self._get_image_properties(pvc_image.to_dict())
+                        image_properties[u'image_topology'] = \
+                            unicode(image_topology_prop)
+                        pvc_image.properties = image_properties
+                        pvc_image._info['properties'] = image_properties
+
                     # Update the image if it has changed. (Right now, always
                     # update it, and update all fields). Update using the
                     # Glance v1 API if possible. Then update other properties
@@ -280,7 +292,7 @@ class PowerVCImageManager(service.Service):
                     LOG.info(_('Updating hosting OS image \'%s\' for PowerVC '
                                'UUID %s'), name, uuid)
                     updated_image = self._update_local_image(
-                        uuid, pvc_image_dict[uuid], local_image,
+                        uuid, pvc_image, local_image,
                         v1local_images, v2local_images)
 
                     # Save updated_at timestamp for the local hostingOS image
@@ -315,6 +327,16 @@ class PowerVCImageManager(service.Service):
                         pvc_image = pvc_image_dict[uuid]
                         status = pvc_image.status
                         pvc_name = pvc_image.name
+
+                        """ Zhao Jian """
+                        image_topology_prop = \
+                            self._format_special_image_extra_property(uuid)
+                        image_properties = \
+                            self._get_image_properties(pvc_image.to_dict())
+                        image_properties[u'image_topology'] = \
+                            unicode(image_topology_prop)
+                        pvc_image.properties = image_properties
+                        pvc_image._info['properties'] = image_properties
 
                         # Only sync images from PowerVC that are 'active', and
                         # that are accessible from our Storage Connectivity
@@ -481,6 +503,16 @@ class PowerVCImageManager(service.Service):
                 local_checksum = \
                     self._get_image_checksum(local_image.to_dict())
                 pvc_checksum = self._get_image_checksum(pvc_image.to_dict())
+
+                """ Zhao Jian """
+                image_topology_prop = \
+                    self._format_special_image_extra_property(uuid)
+                image_properties = \
+                    self._get_image_properties(pvc_image.to_dict())
+                image_properties[u'image_topology'] = \
+                    unicode(image_topology_prop)
+                pvc_image.properties = image_properties
+                pvc_image._info['properties'] = image_properties
 
                 # See if we need to activate a local queued snapshot image from
                 # an instance capture
@@ -756,6 +788,16 @@ class PowerVCImageManager(service.Service):
                     if uuid not in local_image_dict.keys():
                         status = pvc_image.status
                         pvc_name = pvc_image.name
+
+                        """ Zhao Jian """
+                        image_topology_prop = \
+                            self._format_special_image_extra_property(uuid)
+                        image_properties = \
+                            self._get_image_properties(pvc_image.to_dict())
+                        image_properties[u'image_topology'] = \
+                            unicode(image_topology_prop)
+                        pvc_image.properties = image_properties
+                        pvc_image._info['properties'] = image_properties
 
                         # Only add images from PowerVC that are 'active', and
                         # that are accessible on our Storage Connectivity Group
@@ -3657,9 +3699,7 @@ class PowerVCImageManager(service.Service):
         if props is not None:
             for key in props.keys():
                 if key in constants.IMAGE_UNESCAPE_PROPERTIES:
-                    if props[key]:
-                        propVal = props[key].replace("&lt;", "<")
-                        props[key] = propVal.replace("&gt;", ">")
+                    props[key] = HTMLParser.HTMLParser().unescape(props[key])
 
     def _get_image_properties(self, v1image_dict, default_props=None):
         """
@@ -3690,6 +3730,64 @@ class PowerVCImageManager(service.Service):
                         filtered_props[prop] = props[prop]
                 self._unescape(filtered_props)
         return filtered_props
+
+    "Zhao Jian"
+    def _format_special_image_extra_property(self, imageUUID):
+        """
+        Format one special extra image property , named "image_topology" ,
+         which is used for UI to select an available Storage Connectivity
+        Groups or Storage template.
+
+        :param: imageUUID that select to boot a VM
+        :returns:
+        """
+        if imageUUID is None:
+            return []
+        image_topology = []
+        image_scg_list = utils.get_utils().get_image_scgs(imageUUID)
+        available_image_scg_list = \
+            utils.get_utils().filter_out_available_scgs(image_scg_list)
+        for scg in available_image_scg_list:
+            if scg is not None:
+                scg_topology = {}
+                scg_topology[u'scg_id'] = scg.id
+                scg_topology[u'display_name'] = scg.display_name
+
+                scg_hosts = scg.host_list
+                available_hosts = []
+                for host in scg_hosts:
+                    available_host = \
+                        utils.get_utils().get_hypervisor_by_name(host['name'])
+                    if available_host is None:
+                        break
+                    else:
+                        available_host_dict = {}
+                        available_host_dict[u'host_name'] = \
+                            available_host.service['host']
+                        available_host_dict[u'host_display_name'] = \
+                            available_host.service['host_display_name']
+                        available_hosts.append(available_host_dict)
+                if available_hosts:
+                    scg_topology[u'host_list'] = available_hosts
+
+                scg_storage_templates = \
+                    utils.get_utils().\
+                    get_scg_accessible_storage_templates(scg.id)
+                available_storage_templates = []
+                for storage_template in scg_storage_templates:
+                    if storage_template:
+                        storage_template_dict = {}
+                        storage_template_dict[u'id'] = storage_template.id
+                        storage_template_dict[u'name'] = storage_template.name
+                        available_storage_templates.\
+                            append(storage_template_dict)
+                if available_storage_templates:
+                    scg_topology[u'storage_template_list'] = \
+                        available_storage_templates
+
+                if scg_topology:
+                    image_topology.append(scg_topology)
+        return image_topology
 
 
 class ImageSyncController():

@@ -646,11 +646,22 @@ class PowerVCService(object):
         """
         createdServer = None
 
-        self.validate_update_scg(flavorDict)
-
         # extract activation data from instance
         meta = instance._metadata
         key_name = instance.key_name
+
+        extra_specs_key = constants.EXTRA_SPECS
+        scg_key = constants.SCG_KEY
+        storage_template_key = constants.STORAGE_TEMPLATE_KEY
+
+        if 'selected-scg' in meta.keys() and \
+           'selected-storage-template' in meta.keys():
+            flavorDict[extra_specs_key][scg_key] = meta['selected-scg']
+            flavorDict[extra_specs_key][storage_template_key] = \
+                meta['selected-storage-template']
+
+        self.validate_update_scg(flavorDict)
+
         # key_data = instance.key_data
         config_drive = instance._config_drive
         userdata = instance.user_data   # already base64 encoded by local OS
@@ -758,6 +769,7 @@ class PowerVCService(object):
         scg_id_list = [utils.get_utils().get_scg_id_by_scgName(scg_name)
                        for scg_name in scg_name_list]
         scg_key = constants.SCG_KEY
+        storage_template_key = constants.STORAGE_TEMPLATE_KEY
         extra_specs_key = constants.EXTRA_SPECS
 
         if extra_specs_key in flavorDict:
@@ -774,10 +786,24 @@ class PowerVCService(object):
             LOG.info(_("Flavor updated with default storage connectivity"
                        " group in extra specs."))
             flavorDict[extra_specs_key] = {scg_key: scg_id_list[0]}
+
+            """ Zhao Jian """
+            if storage_template_key in extra_specs:
+                LOG.warning("When using default storage connectivity"
+                            "group, could not use a selected storage"
+                            "template.")
+                del(flavorDict[extra_specs_key][storage_template_key])
         else:
             LOG.info(_("Extra specs updated with default storage connectivity"
                        " group info."))
             flavorDict[extra_specs_key][scg_key] = scg_id_list[0]
+
+            """ Zhao Jian """
+            if storage_template_key in extra_specs:
+                LOG.warning("When using default storage connectivity"
+                            "group, could not use a selected storage"
+                            "template.")
+                del(flavorDict[extra_specs_key][storage_template_key])
         return
 
     def destroy(self, instance):
