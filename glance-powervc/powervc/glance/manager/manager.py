@@ -3657,7 +3657,9 @@ class PowerVCImageManager(service.Service):
         if props is not None:
             for key in props.keys():
                 if key in constants.IMAGE_UNESCAPE_PROPERTIES:
-                    props[key] = HTMLParser.HTMLParser().unescape(props[key])
+                    if props[key]:
+                        propVal = props[key].replace("&lt;", "<")
+                        props[key] = propVal.replace("&gt;", ">")
 
     def _get_image_properties(self, v1image_dict, default_props=None):
         """
