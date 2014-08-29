@@ -685,17 +685,19 @@ class Utils(object):
                  accessible_storage_volumes)))
         return accessible_storage_volumes
 
-    def get_image_scgs(self, imageUUID):
+    """ Zhao Jian """
+    def get_image_scgs(self, imageUUID, details=False):
         """
         Get the Storage Connectivity Groups for the specified image.
 
         :param: imageUUID The UUID of the image
+        :param: details To determine if SCG detail info needed
         :returns: The Storage Connectivity Groups for the specified image or an
                     empty list if none are found.
         """
         if imageUUID is not None:
             return self._novaclient.storage_connectivity_groups.list_for_image(
-                imageUUID)
+                imageUUID, details)
         else:
             return []
 
@@ -769,6 +771,43 @@ class Utils(object):
             LOG.debug(_('An error occurred getting the user list: %s'), e)
         LOG.debug(_('Unable to find staging user: %s'), staginguser)
         raise exception.StagingUserNotFound(name=staginguser)
+
+    """ Zhao Jian """
+    def filter_out_available_scgs(self, available_powervc_scgs):
+        """
+        Filter out an available scg list for user to use. An available scg must
+         be both in the scg list that get from CONF file and in the scg list
+        that get from PowerVC
+
+        :param: available_powervc_scgs: Specific SCG list from PowerVC
+        :returns: The available SCG object list if found , else []
+        """
+        available_scg_list = []
+        scg_to_use_list = CONF['powervc'].storage_connectivity_group
+        for scg in available_powervc_scgs:
+            if scg is not None and scg.display_name in scg_to_use_list.keys():
+                LOG.debug(_('PowerVC Storage Connectivity Group \'%s\' '
+                            'found.'), scg.display_name)
+                available_scg = scg
+                available_scg_list.append(available_scg)
+        return available_scg_list
+
+    def get_hypervisor_by_name(self, hostname):
+        """
+        Get the information for the specific hypervisor with the given hostname
+
+        :param: hostname
+        :return: the specific hypervisor information
+        """
+        if hostname is None:
+            return None
+        hypervisor_list = self._novaclient.hypervisors.list()
+        specific_hypervisor = None
+        for hypervisor in hypervisor_list:
+            if hypervisor._info['service']['host'] == hostname:
+                specific_hypervisor = hypervisor
+                break
+        return specific_hypervisor
 
 
 def import_relative_module(relative_import_str, import_str):

@@ -352,18 +352,25 @@ class StorageConnectivityGroupManager(client_base.Manager):
                       % (scgUUID, str(e)))
             return None
 
-    def list_for_image(self, imageUUID):
+    """ Zhao Jian """
+    def list_for_image(self, imageUUID, details=False):
         """
         Get a list of StorageConnectivityGroups for the specified image. If
         an error occurs getting the SCGs for an image, an exception is logged
         and raised.
 
         :param: imageUUID The image UUID:
+        :param: details To determine if the SCG Object need detail info
         :rtype: list of :class:`StorageConnectivityGroup`
         """
         try:
-            return self._list("/images/%s/storage-connectivity-groups" %
-                              imageUUID, "storage_connectivity_groups")
+            if not details:
+                return self._list("/images/%s/storage-connectivity-groups" %
+                                  imageUUID, "storage_connectivity_groups")
+            else:
+                return self._list("/images/%s/storage-connectivity-groups"
+                                  "?details=true" % imageUUID,
+                                  "storage_connectivity_groups")
         except Exception as e:
             LOG.error('A problem was encountered while getting a list of '
                       'Storage Connectivity Groups for image %s: %s '
