@@ -290,6 +290,16 @@ class PVCServerManager(servers.ServerManager):
         _resp, body = self.api.client.get(url)
         return body
 
+    def set_host_maintenance_mode(self, host, mode):
+        url = "/ego/prs/hypervisor_maintenance/%s" % host
+        if mode:
+            status = "enable"
+        else:
+            status = "disable"
+        body = {"status": status,
+                "migrate": "none"}
+        return self._update(url, body)
+
 
 class StorageConnectivityGroup(client_base.Resource):
     """

@@ -59,6 +59,10 @@ class PowerVCService(object):
         self.longrun_initial_delay = CONF.powervc.longrun_initial_delay
         # Add version checking as required
 
+    def set_host_maintenance_mode(self, host, mode):
+        resp = self._manager.set_host_maintenance_mode(host, mode)
+        return resp
+
     def list_instances(self):
         """Return the names of all the instances known to the virtualization
         layer, as a list.
