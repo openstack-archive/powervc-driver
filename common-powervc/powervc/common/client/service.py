@@ -1,11 +1,15 @@
-# Copyright 2013 IBM Corp.
+# Copyright 2013, 2014 IBM Corp.
 
-import urlparse
+import logging
 import re
+import urlparse
+
 import powervc.common.client.delegate as delegate
 from glanceclient.openstack.common import importutils
 from powervc.common.constants import SERVICE_TYPES as SERVICE_TYPES
 from powervc.common import netutils
+
+LOG = logging.getLogger(__name__)
 
 
 class AbstractService(object):
@@ -227,13 +231,35 @@ class ClientServiceCatalog(object):
         """
         if svc_type not in self.endpoints:
             return None
+
+        def _find_version(versions, version_filter):
+            for version in versions.keys():
+                if version.find(version_filter) > -1:
+                    return versions[version]
+
         versions = self.endpoints[svc_type]
-        if version_filter is None:
+        # Here we need test version_filter is None or empty, use 'if not'.
+        if not version_filter:
             return versions[max(versions, key=str)]
-        for version in versions.keys():
-            if version.find(version_filter) > -1:
-                return versions[version]
-        return None
+
+        version = _find_version(versions, version_filter)
+        if version is not None:
+            return version
+        # >> fix bug/1358215 - timing issue between openstack service endpoints
+        # becoming active and powervc-driver's client initialization of those.
+        # Check https://review.openstack.org/#/c/115519/ for the details.
+        # TODO(design): re-consider for #2 in the commit message
+        else:
+            # A lock is not necessary here. Only glance sync service use
+            # specified version apis and might run into this and starup_sync
+            # won't pass until the specified versions are ready. So there
+            # shouldn't be concurrent accesses to self.endpoints[svc_type] with
+            # svc_type='image'.
+            LOG.info(_("rediscover service for type:%s") % svc_type)
+            self._rediscover_service(svc_type)
+            versions = self.endpoints[svc_type]
+            return _find_version(versions, version_filter)
+        # << fix bug/1358215
 
     def get_versions(self, svc_type):
         """return a list of the versions for the given service type
@@ -416,3 +442,14 @@ class ClientServiceCatalog(object):
                 entry = self._normalize_catalog_entry(entry)
                 self.endpoints[svc_type] = \
                     self._build_endpoint_services(entry['url'], svc_type)
+
+    # >> fix bug/1358215, timing issue between openstack service endpoints
+    # becoming active and powervc-driver's client initialization of those.
+    def _rediscover_service(self, svc_type):
+        public_eps = (self.keystone.
+                      service_catalog.get_endpoints(endpoint_type='publicURL'))
+        for entry in public_eps[svc_type]:
+            entry = self._normalize_catalog_entry(entry)
+            self.endpoints[svc_type] = \
+                self._build_endpoint_services(entry['url'], svc_type)
+    # << fix bug/1358215
