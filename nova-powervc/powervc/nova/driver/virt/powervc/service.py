@@ -20,6 +20,7 @@ from nova.exception import Invalid
 from nova.openstack.common import excutils
 from powervc.nova.driver.compute import task_states
 from nova.compute import flavors
+from novaclient.v1_1 import servers
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
@@ -41,7 +42,6 @@ class PowerVCService(object):
     def __init__(self, pvc_client):
         """Initializer."""
         self._manager = pvc_client.manager
-        self._servers = pvc_client.servers
         self._hypervisors = pvc_client.hypervisors
         self._images = pvc_client.images
         self._flavors = pvc_client.flavors
@@ -533,7 +533,7 @@ class PowerVCService(object):
         into an powerVC instance for nova client use.
         """
 
-        server = self._servers.Server(self._manager, instance)
+        server = servers.Server(self._manager, instance)
 
         # Check whether we can get the metadata from instance
         key = 'metadata'
@@ -924,7 +924,7 @@ class PowerVCService(object):
         # The resize operation REST API of PowerVC is different
         # from the standard OpenStack.
 
-        server_instance = self._servers.Server(self._manager, instance)
+        server_instance = servers.Server(self._manager, instance)
         server_instance.id = self._get_pvcid_from_metadata(instance)
         server = self._manager.get(server_instance)
 
@@ -1184,9 +1184,9 @@ class PowerVCService(object):
         server = self._manager.get(server_instance)
 
         if reboot_type == "SOFT":
-            server.reboot(self._servers.REBOOT_SOFT)
+            server.reboot(servers.REBOOT_SOFT)
         else:
-            server.reboot(self._servers.REBOOT_HARD)
+            server.reboot(servers.REBOOT_HARD)
 
         # loop when vm state status is not none
         LOG.debug(_('wait until rebooted server task state is none'))
