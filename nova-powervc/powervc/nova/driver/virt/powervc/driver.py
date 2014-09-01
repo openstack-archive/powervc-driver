@@ -452,7 +452,8 @@ class PowerVCDriver(driver.ComputeDriver):
 
     def migrate_disk_and_power_off(self, context, instance, dest,
                                    instance_type, network_info,
-                                   block_device_info=None):
+                                   block_device_info=None,
+                                   timeout=0, retry_interval=0):
         """
         This method is called at the beginning of a resize instance request.
         The sequence for resize operations is the following:
@@ -465,6 +466,7 @@ class PowerVCDriver(driver.ComputeDriver):
         Transfers the disk of a running instance in multiple phases, turning
         off the instance before the end.
         """
+        # TODO: add support for timeout
         LOG.debug(_("The method migrate_disk_and_power_off is invoked."))
         """
         In order to support the live resize in the PowerVC, remove the
@@ -584,8 +586,9 @@ class PowerVCDriver(driver.ComputeDriver):
         """Unrescue the specified instance."""
         raise NotImplementedError()
 
-    def power_off(self, instance):
+    def power_off(self, instance, timeout=0, retry_interval=0):
         """Power off the specified instance."""
+        # TODO: add timeout support
         return self._service.power_off(instance)
 
     def power_on(self, context, instance, network_info,
