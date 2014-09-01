@@ -444,10 +444,12 @@ class PowerVCDriver(driver.ComputeDriver):
 
     def attach_interface(self, instance, image_meta, network_info):
         """Attach an interface to the instance."""
+        #raise NotImplementedError()
         raise NotImplementedError()
 
     def detach_interface(self, instance, network_info):
         """Detach an interface from the instance."""
+        #raise NotImplementedError()
         raise NotImplementedError()
 
     def migrate_disk_and_power_off(self, context, instance, dest,
@@ -1021,7 +1023,17 @@ class PowerVCDriver(driver.ComputeDriver):
         """Start/Stop host maintenance window. On start, it triggers
         guest VMs evacuation.
         """
-        raise NotImplementedError()
+        try:
+            self._service.set_host_maintenance_mode(host, mode)
+        except Exception as e:
+            # return powervc error message to uplayer
+            return e.message
+        # return 'on_maintenance' or 'off_maintenance' string
+        # to nova-api response if pvc performed with no Exception 
+        if mode:
+            return 'on_maintenance'
+        else:
+            return 'off_maintenance'
 
     def set_host_enabled(self, host, enabled):
         """Sets the specified host's ability to accept new instances."""
