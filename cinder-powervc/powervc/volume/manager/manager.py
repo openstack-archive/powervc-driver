@@ -1110,7 +1110,9 @@ class PowerVCCinderManager(service.Service):
         if CONF.enabled_backends is not None and\
                 constants.BACKEND_POWERVCDRIVER in CONF.enabled_backends:
             host = "%s@%s" % (CONF.host, constants.BACKEND_POWERVCDRIVER)
-        values = {'display_name': (volume.get('display_name', '') or 'None'),
+        disp_name = volume.get('display_name', '') or volume.get('name', '')
+        LOG.debug(_("volume disp_name: %s") % disp_name)
+        values = {'display_name': (disp_name or 'None'),
                   'display_description': volume.get('display_description'),
                   #        'volume_type_id': volume_type_id,
                   #                   'id': volume['id'],
