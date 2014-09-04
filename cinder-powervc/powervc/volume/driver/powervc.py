@@ -64,6 +64,7 @@ class PowerVCDriver(VolumeDriver):
     """
 
     def __init__(self, *args, **kwargs):
+        super(PowerVCDriver, self).__init__(*args, **kwargs)
         CONF.log_opt_values(LOG, logging.INFO)
         self._service = service.PowerVCService()
         if not service.PowerVCService._client:
