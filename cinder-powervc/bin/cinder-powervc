@@ -26,7 +26,19 @@ gettextutils.install('cinder')
 
 from cinder import utils
 from cinder.openstack.common import log as logging
-from cinder.openstack.common import service
+# Currently cinder service uses threading instead of eventlet's event,
+# This causes if you don't monkey patch threading, it will hang there
+# all the time. For detail, check this fix in incubator project:
+# https://github.com/openstack/oslo-incubator/commit/\
+# 1e7007824374842bc8108dff5e5e2694e12932b2
+# Will create a bug to cinder to fix this. Temporarily fix is to replace
+# cinder service instead of nova service in 1365373.
+"""Need to patch nova logging with cinder logging, or it will throw
+cfg already parsed error"""
+import nova.openstack.common as nova_common
+nova_common.log = logging
+from nova.openstack.common import service
+
 from cinder.common import config as cinder_config
 from powervc.common import config
 # NOTE: parse config before import manager
