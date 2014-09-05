@@ -21,6 +21,7 @@ from nova.openstack.common import excutils
 from powervc.nova.driver.compute import task_states
 from nova.compute import flavors
 from novaclient.v1_1 import servers
+from nova.objects import base as objects_base
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
@@ -532,8 +533,8 @@ class PowerVCService(object):
         This method handles converting a a hosting instance
         into an powerVC instance for nova client use.
         """
-
-        server = servers.Server(self._manager, instance)
+        instance_primitive = objects_base.obj_to_primitive(instance)
+        server = servers.Server(self._manager, instance_primitive)
 
         # Check whether we can get the metadata from instance
         key = 'metadata'
