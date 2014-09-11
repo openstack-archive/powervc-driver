@@ -38,7 +38,7 @@ from neutron.common import config as logging_config
 from powervc.common import config
 
 config.parse_power_config(sys.argv, 'powervc-neutron')
-logging_config.setup_logging(config.CONF)
+logging_config.setup_logging()
 
 from powervc.neutron.agent.neutron_powervc_agent import main
 
