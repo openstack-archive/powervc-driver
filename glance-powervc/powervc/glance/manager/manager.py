@@ -11,7 +11,6 @@ import Queue
 import threading
 import itertools
 from operator import itemgetter
-import HTMLParser
 
 from powervc.common import config
 
@@ -23,13 +22,18 @@ from glanceclient.exc import CommunicationError
 from glanceclient.exc import HTTPNotFound
 
 from powervc.common import constants as consts
-from powervc.common import messaging
 from powervc.common.exception import StorageConnectivityGroupNotFound
 from powervc.common.gettextutils import _
 from powervc.common.client import factory as clients
 from powervc.glance.common import constants
 from powervc.glance.common import config as glance_config
 from powervc.common import utils
+
+from powervc.common import messaging
+
+from oslo.messaging.notify import listener
+from oslo.messaging import target
+from oslo.messaging import transport
 
 CONF = glance_config.CONF
 
@@ -2305,9 +2309,8 @@ class PowerVCImageManager(service.Service):
         self._start_pvc_event_handler()
 
     def _start_local_event_handler(self):
-        """
-        Start the local hosting OS image notification event handler if it's not
-        already running.
+        """Start the local hosting OS image notification event handler if it's
+        not already running.
 
         The event handler is not started if the qpid_hostname is not specified
         in the configuration.
@@ -2317,45 +2320,36 @@ class PowerVCImageManager(service.Service):
         if self.local_event_handler_running:
             return
 
-        def local_event_reconnect_handler():
-            """
-            The reconnect handler will start a periodic scan operation.
-            """
-            LOG.info(_("Processing local event handler reconnection..."))
-            self._add_periodic_sync_to_queue()
+        LOG.debug("Enter _start_local_event_handler method")
 
-        try:
+        trans = transport.get_transport(config.AMQP_OPENSTACK_CONF)
+        targets = [
+            target.Target(exchange=constants.IMAGE_EVENT_EXCHANGE,
+                          topic=constants.IMAGE_EVENT_TOPIC)
+        ]
+        endpoint = messaging.NotificationEndpoint(log=LOG)
 
-            # See if the host is specified. If not, do not attempt to connect
-            # and register the event handler
-            host = config.AMQP_OPENSTACK_CONF.qpid_hostname
-            if host and host is not None:
-                local_conn = messaging.LocalConnection(
-                    reconnect_handler=local_event_reconnect_handler,
-                    log=logging)
-                local_listener = local_conn.create_listener(
-                    constants.IMAGE_EVENT_EXCHANGE,
-                    constants.IMAGE_EVENT_TOPIC)
+        endpoint.register_handler(constants.IMAGE_EVENT_TYPE_ALL,
+                                  self._local_image_notifications)
 
-                # Register the handler to begin processing messages
-                local_listener.register_handler(
-                    constants.IMAGE_EVENT_TYPE_ALL,
-                    self._local_image_notifications)
-                local_conn.start()
-                LOG.info(_('Monitoring local hosting OS for Image '
-                           'notification events...'))
-                self.local_event_handler_running = True
-            else:
-                LOG.warning(_('Local hosting OS image event handling could '
-                              'not be started because the qpid_host was not '
-                              'specified in the configuration file.'))
-        except Exception as e:
-            LOG.exception(_('An error occurred starting the local hosting OS '
-                            'image notification event handler: %s'), e)
+        endpoints = [
+            endpoint,
+        ]
+
+        LOG.debug("Starting to listen...... ")
+
+        local_glance_listener = listener.\
+            get_notification_listener(trans, targets, endpoints,
+                                      allow_requeue=False)
+        local_glance_listener.start()
+        local_glance_listener.wait()
+
+        LOG.debug("Exit _start_local_event_handler method")
+
+        self.local_event_handler_running = True
 
     def _start_pvc_event_handler(self):
-        """
-        Start the PowerVC image notification event handler if not already
+        """Start the PowerVC image notification event handler if not already
         running.
 
         The event handler is not started if the powervc_qpid_hostname is
@@ -2366,41 +2360,33 @@ class PowerVCImageManager(service.Service):
         if self.pvc_event_handler_running:
             return
 
-        def pvc_event_reconnect_handler():
-            """
-            The reconnect handler will start a periodic scan operation.
-            """
-            LOG.info(_("Processing PowerVC event handler reconnection..."))
-            self._add_periodic_sync_to_queue()
+        LOG.debug("Enter _start_pvc_event_handler method")
 
-        try:
+        trans = transport.get_transport(config.AMQP_POWERVC_CONF)
+        targets = [
+            target.Target(exchange=constants.IMAGE_EVENT_EXCHANGE,
+                          topic=constants.IMAGE_EVENT_TOPIC)
+        ]
+        endpoint = messaging.NotificationEndpoint(log=LOG)
 
-            # See if the host is specified. If not, do not attempt to connect
-            # and register the event handler
-            host = config.AMQP_POWERVC_CONF.qpid_hostname
-            if host and host is not None:
-                pvc_conn = messaging.PowerVCConnection(
-                    reconnect_handler=pvc_event_reconnect_handler, log=logging)
-                pvc_listener = pvc_conn.create_listener(
-                    constants.IMAGE_EVENT_EXCHANGE,
-                    constants.IMAGE_EVENT_TOPIC)
+        endpoint.register_handler(constants.IMAGE_EVENT_TYPE_ALL,
+                                  self._pvc_image_notifications)
 
-                # Register the handler to begin processing messages
-                pvc_listener.register_handler(
-                    constants.IMAGE_EVENT_TYPE_ALL,
-                    self._pvc_image_notifications)
-                pvc_conn.start()
-                LOG.info(_('Monitoring PowerVC for Image notification '
-                           'events...'))
-                self.pvc_event_handler_running = True
-            else:
-                LOG.warning(_('PowerVC image event handling could not be '
-                              'started because the powervc_qpid_host was not '
-                              'specified in the configuration file.'))
+        endpoints = [
+            endpoint,
+        ]
 
-        except Exception as e:
-            LOG.exception(_('An error occurred starting the PowerVC image '
-                            'notification event handler: %s'), e)
+        LOG.debug("Starting to listen...... ")
+
+        pvc_glance_listener = listener.\
+            get_notification_listener(trans, targets, endpoints,
+                                      allow_requeue=False)
+        pvc_glance_listener.start()
+        pvc_glance_listener.wait()
+
+        LOG.debug("Exit _start_pvc_event_handler method")
+
+        self.pvc_event_handler_running = True
 
     def _process_event_queue(self):
         """
@@ -2421,17 +2407,28 @@ class PowerVCImageManager(service.Service):
                           str(self.local_events_to_ignore_dict))
                 LOG.debug(_('pvc events to ignore: %s'),
                           str(self.pvc_events_to_ignore_dict))
-                event_type = event.get(constants.EVENT_TYPE)
                 context = event.get(constants.EVENT_CONTEXT)
-                message = event.get(constants.EVENT_MESSAGE)
+                event_type = event.get(constants.EVENT_TYPE)
+                ctxt = event.get(constants.REAL_EVENT_CONTEXT)
+                real_type = event.get(constants.REAL_EVENT_TYPE)
+                payload = event.get(constants.EVENT_PAYLOAD)
                 if event_type == constants.LOCAL_IMAGE_EVENT:
                     LOG.debug(_('Processing a local hostingOS image event on '
                                 'the event queue: %s'), str(event))
-                    self._handle_local_image_notifications(context, message)
+                    self.\
+                        _handle_local_image_notifications(context=context,
+                                                          ctxt=ctxt,
+                                                          event_type=real_type,
+                                                          payload=payload,
+                                                          )
                 elif event_type == constants.PVC_IMAGE_EVENT:
                     LOG.debug(_('Processing a PowerVC image event on '
                                 'the event queue: %s'), str(event))
-                    self._handle_pvc_image_notifications(context, message)
+                    self._handle_pvc_image_notifications(context=context,
+                                                         ctxt=ctxt,
+                                                         event_type=real_type,
+                                                         payload=payload,
+                                                         )
                 elif event_type == constants.PERIODIC_SCAN_EVENT:
                     LOG.debug(_('Processing a periodic sync event on '
                                 'the event queue: %s'), str(event))
@@ -2449,23 +2446,35 @@ class PowerVCImageManager(service.Service):
             finally:
                 self.event_queue.task_done()
 
-    def _local_image_notifications(self, context, message):
-        """
-        Place the local image event on the event queue for processing.
+    def _local_image_notifications(self,
+                                   context=None,
+                                   ctxt=None,
+                                   event_type=None,
+                                   payload=None):
+        """Place the local image event on the event queue for processing.
 
-        :param: context The event security context
-        :param: message The event message
+        :param: context The security context
+        :param: ctxt message context
+        :param: event_type message event type
+        :param: payload The AMQP message sent from OpenStack (dictionary)
         """
         event = {}
         event[constants.EVENT_TYPE] = constants.LOCAL_IMAGE_EVENT
         event[constants.EVENT_CONTEXT] = context
-        event[constants.EVENT_MESSAGE] = message
+        event[constants.REAL_EVENT_CONTEXT] = ctxt
+        event[constants.REAL_EVENT_TYPE] = event_type
+        event[constants.EVENT_PAYLOAD] = payload
+
         LOG.debug(_('Adding local image event to event queue: %s'), str(event))
         self.event_queue.put(event)
 
-    def _handle_local_image_notifications(self, context, message):
-        """
-        Handle image notification events received from the local hosting OS.
+    def _handle_local_image_notifications(self,
+                                          context=None,
+                                          ctxt=None,
+                                          event_type=None,
+                                          payload=None,
+                                          ):
+        """Handle image notification events received from the local hosting OS.
         Only handle update, and delete event types. The activate event
         is processed, but only to add the new image to the update_at dict.
 
@@ -2474,14 +2483,13 @@ class PowerVCImageManager(service.Service):
         event from PowerVC to the ignore list. Then when that event arrives
         from PowerVC because of this update we will ignore it.
 
-        :param: context The event security context
-        :param: message The event message
+        :param: context The security context
+        :param: ctxt message context
+        :param: event_type message event type
+        :param: payload The AMQP message sent from OpenStack (dictionary)
         """
-        if message is None:
-            LOG.debug(_('The local image event notification had no message!'))
-            return
-        event_type = message.get('event_type')
-        v1image_dict = message.get('payload')
+
+        v1image_dict = payload
         if event_type == constants.IMAGE_EVENT_TYPE_UPDATE:
             self._process_local_image_update_event(v1image_dict)
         elif event_type == constants.IMAGE_EVENT_TYPE_DELETE:
@@ -2491,7 +2499,11 @@ class PowerVCImageManager(service.Service):
         elif event_type == constants.IMAGE_EVENT_TYPE_CREATE:
             self._process_local_image_create_event(v1image_dict)
         else:
-            LOG.debug(_('Did not process event: %s'), str(message))
+            LOG.debug(_("Did not process event: type:'%(event_type)s' type, "
+                        "payload:'%(payload)s'"
+                        )
+                      % (event_type, payload)
+                      )
 
     def _process_local_image_update_event(self, v1image_dict):
         """
@@ -2815,24 +2827,37 @@ class PowerVCImageManager(service.Service):
                             '\'%s\'. The PowerVC UUID is not known.'),
                           local_name)
 
-    def _pvc_image_notifications(self, context, message):
-        """
-        Place the PowerVC image event on the event queue for processing.
+    def _pvc_image_notifications(self,
+                                 context=None,
+                                 ctxt=None,
+                                 event_type=None,
+                                 payload=None):
+        """Place the PowerVC image event on the event queue for processing.
 
-        :param: context The event security context
-        :param: message The event message
+        :param: context The security context
+        :param: ctxt message context
+        :param: event_type message event type
+        :param: payload The AMQP message sent from OpenStack (dictionary)
         """
+
         event = {}
         event[constants.EVENT_TYPE] = constants.PVC_IMAGE_EVENT
         event[constants.EVENT_CONTEXT] = context
-        event[constants.EVENT_MESSAGE] = message
+        event[constants.REAL_EVENT_CONTEXT] = ctxt
+        event[constants.REAL_EVENT_TYPE] = event_type
+        event[constants.EVENT_PAYLOAD] = payload
+
         LOG.debug(_('Adding PowerVC image event to event queue: %s'),
                   str(event))
         self.event_queue.put(event)
 
-    def _handle_pvc_image_notifications(self, context, message):
-        """
-        Handle image notification events received from PowerVC.
+    def _handle_pvc_image_notifications(self,
+                                        context=None,
+                                        ctxt=None,
+                                        event_type=None,
+                                        payload=None,
+                                        ):
+        """Handle image notification events received from PowerVC.
         Only handle activate, update, and delete event types.
 
         There is a scheme in place to keep events from ping-ponging back
@@ -2841,15 +2866,13 @@ class PowerVCImageManager(service.Service):
         that event arrives from the hosting OS because of this update we
         will ignore it.
 
-        :param: context The event security context
-        :param: message The event message
+        :param: context The security context
+        :param: ctxt message context
+        :param: event_type message event type
+        :param: payload The AMQP message sent from OpenStack (dictionary)
         """
-        if message is None:
-            LOG.debug(_('The PowerVC image event notification had no '
-                        'message!'))
-            return
-        event_type = message.get('event_type')
-        v1image_dict = message.get('payload')
+
+        v1image_dict = payload
         if event_type == constants.IMAGE_EVENT_TYPE_UPDATE:
             self._process_pvc_image_update_event(v1image_dict)
         elif event_type == constants.IMAGE_EVENT_TYPE_DELETE:
@@ -2857,7 +2880,11 @@ class PowerVCImageManager(service.Service):
         elif event_type == constants.IMAGE_EVENT_TYPE_ACTIVATE:
             self._process_pvc_image_activate_event(v1image_dict)
         else:
-            LOG.debug(_('Did not process event: %s'), str(message))
+            LOG.debug(_("Did not process event: type:'%(event_type)s' type, "
+                        "payload:'%(payload)s'"
+                        )
+                      % (event_type, payload)
+                      )
 
     def _process_pvc_image_update_event(self, v1image_dict):
         """
