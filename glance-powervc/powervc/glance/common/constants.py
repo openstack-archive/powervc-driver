@@ -66,6 +66,9 @@ LOCAL = 'local'
 EVENT_TYPE = 'type'
 EVENT_CONTEXT = 'context'
 EVENT_MESSAGE = 'message'
+EVENT_PAYLOAD = 'payload'
+REAL_EVENT_TYPE = 'real_type'
+REAL_EVENT_CONTEXT = 'ctxt'
 
 # Event queue event types
 LOCAL_IMAGE_EVENT = LOCAL
