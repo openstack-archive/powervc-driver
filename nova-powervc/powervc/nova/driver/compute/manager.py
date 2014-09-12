@@ -36,13 +36,17 @@ from nova.objects import base as obj_base
 from powervc.nova.driver.compute import computes
 from powervc.nova.driver.compute import constants
 from powervc.nova.driver.compute import task_states as pvc_task_states
-from powervc.common import messaging
 from powervc.nova.driver.virt.powervc.sync import flavorsync
 from powervc import utils
 from powervc.common import utils as utills
 from powervc.common.gettextutils import _
 from powervc.common.client import delegate as ctx_delegate
 
+from powervc.common import omessaging
+
+from oslo.messaging.notify import listener
+from oslo.messaging import target
+from oslo.messaging import transport
 
 LOG = logging.getLogger(__name__)
 
@@ -916,65 +920,70 @@ class PowerVCCloudManager(manager.Manager):
         return ['default']
 
     def _create_local_listeners(self, ctx):
+        """Listen for local(OpenStack) compute node notifications."""
 
-        def reconnect_handler():
-            LOG.debug(_('Re-established connection to local Qpid broker'))
+        LOG.debug("Enter _create_local_listeners method")
 
-        # Create Qpid connection and listener
-        conn = messaging.LocalConnection(reconnect_handler=reconnect_handler,
-                                         context=ctx,
-                                         log=logging)
-        listener = conn.create_listener('nova', 'notifications.info')
+        trans = transport.get_transport(cfg.AMQP_OPENSTACK_CONF)
+        targets = [
+            target.Target(exchange='nova', topic='notifications.info')
+        ]
+        endpoint = omessaging.NotificationEndpoint(log=LOG, sec_context=ctx)
 
         # Instance state changes
-        listener.register_handler([
+        endpoint.register_handler([
             constants.EVENT_INSTANCE_RESIZE,
             constants.EVENT_INSTANCE_RESIZE_CONFIRM,
             constants.EVENT_INSTANCE_LIVE_MIGRATE],
             self._handle_local_deferred_host_updates)
 
         # Instance creation
-        listener.register_handler(constants.EVENT_INSTANCE_CREATE,
+        endpoint.register_handler(constants.EVENT_INSTANCE_CREATE,
                                   self._handle_local_instance_create)
+        endpoints = [
+            endpoint,
+        ]
 
-        conn.start()
+        LOG.debug("Starting to listen...... ")
+
+        local_nova_listener = listener.\
+            get_notification_listener(trans, targets, endpoints,
+                                      allow_requeue=False)
+        local_nova_listener.start()
+        local_nova_listener.wait()
+
+        LOG.debug("Exit _create_local_listeners method")
 
     def _create_powervc_listeners(self, ctx):
-        """
-        Listen for out-of-band changes made in PowerVC.
+        """Listen for out-of-band changes made in PowerVC.
 
-        This method creates the connection to the PowerVC Qpid broker and
-        sets up handlers so that any changes made directly in PowerVC are
-        reflected in the local OS.
+        Any changes made directly in PowerVC will be reflected in the local OS.
 
         :param: ctx The security context
         """
-        # Function to call if we lose the Qpid connection and then get it back
-        def reconnect_handler():
-            LOG.debug(_('Re-established connection to Qpid broker, sync all '
-                      'instances on next sync interval'))
-            self.full_instance_sync_required = True
 
-        # Create Qpid connection and listener
-        conn = messaging.PowerVCConnection(reconnect_handler=reconnect_handler,
-                                           context=ctx,
-                                           log=logging)
-        listener = conn.create_listener('nova', 'notifications.info')
+        LOG.debug("Enter _create_powervc_listeners method")
+
+        trans = transport.get_transport(cfg.AMQP_POWERVC_CONF)
+        targets = [
+            target.Target(exchange='nova', topic='notifications.info')
+        ]
+        endpoint = omessaging.NotificationEndpoint(log=LOG, sec_context=ctx)
 
         # Instance creation
-        listener.register_handler(constants.EVENT_INSTANCE_CREATE,
+        endpoint.register_handler(constants.EVENT_INSTANCE_CREATE,
                                   self._handle_powervc_instance_create)
 
         # onboarding end
-        listener.register_handler(constants.EVENT_INSTANCE_IMPORT,
+        endpoint.register_handler(constants.EVENT_INSTANCE_IMPORT,
                                   self._handle_powervc_instance_create)
 
         # Instance deletion
-        listener.register_handler(constants.EVENT_INSTANCE_DELETE,
+        endpoint.register_handler(constants.EVENT_INSTANCE_DELETE,
                                   self._handle_powervc_instance_delete)
 
         # Instance state changes
-        listener.register_handler([
+        endpoint.register_handler([
             constants.EVENT_INSTANCE_UPDATE,
             constants.EVENT_INSTANCE_POWER_ON,
             constants.EVENT_INSTANCE_POWER_OFF,
@@ -986,16 +995,31 @@ class PowerVCCloudManager(manager.Manager):
             self._handle_powervc_instance_state)
 
         # Instance volume attach/detach event handling
-        listener.register_handler([
+        endpoint.register_handler([
             constants.EVENT_INSTANCE_VOLUME_ATTACH,
             constants.EVENT_INSTANCE_VOLUME_DETACH],
             self._handle_volume_attach_or_detach)
 
-        conn.start()
+        endpoints = [
+            endpoint,
+        ]
 
-    def _handle_local_instance_create(self, context, message):
-        """
-        Handle local deployment completed messages sent from the
+        LOG.debug("Starting to listen...... ")
+
+        pvc_nova_listener = listener.\
+            get_notification_listener(trans, targets, endpoints,
+                                      allow_requeue=False)
+        pvc_nova_listener.start()
+        pvc_nova_listener.wait()
+
+        LOG.debug("Exit _create_powervc_listeners method")
+
+    def _handle_local_instance_create(self,
+                                      context=None,
+                                      ctxt=None,
+                                      event_type=None,
+                                      payload=None):
+        """Handle local deployment completed messages sent from the
         hosting OS. This is need so we can tell the hosting OS
         to sync the latest state from PowerVC. Once a deployment
         completes in PowerVC the instances go into activating task
@@ -1004,11 +1028,10 @@ class PowerVCCloudManager(manager.Manager):
         back from spawn thus sending the completed event.
 
         :param: context The security context
-        :param: message The AMQP message sent from OpenStack (dictionary)
+        :param: ctxt message context
+        :param: event_type message event type
+        :param: payload The AMQP message sent from OpenStack (dictionary)
         """
-        LOG.debug(_("Handling local notification: %s" %
-                    message.get('event_type')))
-        payload = message.get('payload')
         hosting_id = payload.get('instance_id')
 
         # Attempt to get the local instance.
@@ -1016,7 +1039,7 @@ class PowerVCCloudManager(manager.Manager):
         try:
             instance = db.instance_get_by_uuid(context, hosting_id)
         except exception.InstanceNotFound:
-            LOG.debug(_("Local Instance %s Not Found" % hosting_id))
+            LOG.debug(_("Local Instance %s Not Found") % hosting_id)
             return
 
         # Get the PVC instance
@@ -1029,28 +1052,33 @@ class PowerVCCloudManager(manager.Manager):
         else:
             LOG.debug(_('PowerVC instance could not be found'))
 
-    def _handle_local_deferred_host_updates(self, context, message):
-        """
-        Handle live migration completed messages sent from PowerVC.
+    def _handle_local_deferred_host_updates(self,
+                                            context=None,
+                                            ctxt=None,
+                                            event_type=None,
+                                            payload=None):
+        """Handle live migration completed messages sent from PowerVC.
 
         :param: context The security context
-        :param: message The AMQP message sent from OpenStack (dictionary)
+        :param: ctxt message context
+        :param: event_type message event type
+        :param: payload The AMQP message sent from OpenStack (dictionary)
         """
-        hosting_id = self._pre_process_message(message)
+        hosting_id = self._pre_process_message(payload)
 
         # Attempt to get the local instance.
         instance = None
         try:
             instance = db.instance_get_by_uuid(context, hosting_id)
         except exception.InstanceNotFound:
-            LOG.debug(_("Local Instance %s Not Found" % hosting_id))
+            LOG.debug(_("Local Instance %s Not Found") % hosting_id)
             return
 
         # See if the instance is deferring host scheduling.
         # If it is exit immediately.
         if not self.driver._check_defer_placement(instance):
-            LOG.debug(_("Local Instance %s did not defer scheduling"
-                        % hosting_id))
+            LOG.debug(_("Local Instance %s did not defer scheduling")
+                      % hosting_id)
             return
 
         # Get the PVC instance
@@ -1064,19 +1092,24 @@ class PowerVCCloudManager(manager.Manager):
                     self.driver.update_instance_host(context, instance)
                 except Exception:
                     LOG.debug(_('Problem updating local instance host '
-                                'information, instance: %s' % instance['id']))
+                                'information, instance: %s') % instance['id'])
             else:
                 LOG.debug(_('Tried to update instance host value but the'
                             ' instance could not be found in PowerVC'))
 
-    def _handle_powervc_instance_create(self, context, message):
-        """
-        Handle instance create messages sent from PowerVC.
+    def _handle_powervc_instance_create(self,
+                                        context=None,
+                                        ctxt=None,
+                                        event_type=None,
+                                        payload=None):
+        """Handle instance create messages sent from PowerVC.
 
         :param: context The security context
-        :param: message The AMQP message sent from OpenStack (dictionary)
+        :param: ctxt message context
+        :param: event_type message event type
+        :param: payload The AMQP message sent from OpenStack (dictionary)
         """
-        powervc_instance_id = self._pre_process_message(message)
+        powervc_instance_id = self._pre_process_message(payload)
 
         # Check for matching local instance
         matched_instances = self._get_local_instance_by_pvc_id(
@@ -1101,20 +1134,25 @@ class PowerVCCloudManager(manager.Manager):
             try:
                 self._add_local_instance(context, instance)
             except Exception as e:
-                LOG.warning(_("Failed to insert instance due to: %s "
-                              % str(e)))
+                LOG.warning(_("Failed to insert instance due to: %s ")
+                            % str(e))
         else:
             LOG.debug(_('Tried to add newly created instance but it could not '
                       'be found in PowerVC'))
 
-    def _handle_powervc_instance_delete(self, context, message):
-        """
-        Handle instance delete messages sent from PowerVC.
+    def _handle_powervc_instance_delete(self,
+                                        context=None,
+                                        ctxt=None,
+                                        event_type=None,
+                                        payload=None):
+        """Handle instance delete messages sent from PowerVC.
 
         :param: context The security context
-        :param: message The AMQP message sent from OpenStack (dictionary)
+        :param: ctxt message context
+        :param: event_type message event type
+        :param: payload The AMQP message sent from OpenStack (dictionary)
         """
-        powervc_instance_id = self._pre_process_message(message)
+        powervc_instance_id = self._pre_process_message(payload)
 
         # Check for matching local instance
         matched_instances = self._get_local_instance_by_pvc_id(
@@ -1128,17 +1166,21 @@ class PowerVCCloudManager(manager.Manager):
         # Remove the instance from the local OS
         self._remove_local_instance(context, matched_instances[0])
 
-    def _handle_powervc_instance_state(self, context, message):
-        """
-        Handle instance state changes sent from PowerVC. This includes
+    def _handle_powervc_instance_state(self,
+                                       context=None,
+                                       ctxt=None,
+                                       event_type=None,
+                                       payload=None):
+        """Handle instance state changes sent from PowerVC. This includes
         instance update and all other state changes caused by events like
         power on, power off, resize, live migration, and snapshot.
 
         :param: context The security context
-        :param: message The AMQP message sent from OpenStack (dictionary)
+        :param: ctxt message context
+        :param: event_type message event type
+        :param: payload The AMQP message sent from OpenStack (dictionary)
         """
-        powervc_instance_id = self._pre_process_message(message)
-        event_type = message.get('event_type')
+        powervc_instance_id = self._pre_process_message(payload)
 
         local_instance = self.\
             _get_matched_instance_by_pvc_id(context, powervc_instance_id)
@@ -1151,25 +1193,29 @@ class PowerVCCloudManager(manager.Manager):
         self._update_state(context, local_instance, powervc_instance,
                            powervc_instance_id, event_type)
 
-    def _handle_volume_attach_or_detach(self, context, message):
-        """
-        Handle out of band volume attach or detach event
+    def _handle_volume_attach_or_detach(self,
+                                        context=None,
+                                        ctxt=None,
+                                        event_type=None,
+                                        payload=None):
+        """Handle out of band volume attach or detach event
 
         :param: context The security context
-        :param: message The AMQP message sent from OpenStack (dictionary)
+        :param: ctxt message context
+        :param: event_type message event type
+        :param: payload The AMQP message sent from OpenStack (dictionary)
         """
-        powervc_instance_id = self._pre_process_message(message)
+        powervc_instance_id = self._pre_process_message(payload)
 
         local_instance = self.\
             _get_matched_instance_by_pvc_id(context, powervc_instance_id)
         if not local_instance:
             return
 
-        payload = message.get('payload')
         powervc_volume_id = payload.get('volume_id')
         if powervc_volume_id is None:
-            LOG.warning(_('no valid volume for powervc instance %s' %
-                          powervc_instance_id))
+            LOG.warning(_('no valid volume for powervc instance %s') %
+                        powervc_instance_id)
             return
         vol_id = self.cache_volume.get_by_id(powervc_volume_id)
         if vol_id is None:
@@ -1190,16 +1236,13 @@ class PowerVCCloudManager(manager.Manager):
         self.sync_volume_attachment(context, powervc_instance_id,
                                     local_instance)
 
-    def _pre_process_message(self, message):
-        """
-        Logging the event type and return the instance id of the nova server
+    def _pre_process_message(self, payload):
+        """Logging the event type and return the instance id of the nova server
         instance in the event
 
-        :param: message The AMQP message sent from OpenStack (dictionary)
+        :param: payload The AMQP message sent from OpenStack (dictionary)
         :returns instance id triggering the event
         """
-        LOG.debug(_("Handling notification: %s" % message.get('event_type')))
-        payload = message.get('payload')
         instance_id = payload.get('instance_id')
         return instance_id
 
