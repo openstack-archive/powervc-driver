@@ -29,7 +29,7 @@ fake_volume = {'display_name': 'fake_volume',
                'instance_uuid': '',
                'attach_status': ''}
 
-fake_message = {'payload': {'volume_id': '', 'display_name': ''}}
+fake_payload = {'volume_id': '', 'display_name': ''}
 
 fake_context = {}
 
@@ -81,7 +81,8 @@ class Test(unittest.TestCase):
 
         self.moxer.ReplayAll()
 
-        self.manager._handle_powervc_volume_create(fake_context, fake_message)
+        self.manager._handle_powervc_volume_create(context=fake_context,
+                                                   payload=fake_payload)
 
         self.moxer.UnsetStubs()
         self.moxer.VerifyAll()
@@ -107,7 +108,8 @@ class Test(unittest.TestCase):
 
         self.moxer.ReplayAll()
 
-        self.manager._handle_powervc_volume_create(fake_context, fake_message)
+        self.manager._handle_powervc_volume_create(context=fake_context,
+                                                   payload=fake_payload)
 
         self.moxer.UnsetStubs()
         self.moxer.VerifyAll()
