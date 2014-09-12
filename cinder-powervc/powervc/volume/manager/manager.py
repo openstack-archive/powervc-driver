@@ -14,10 +14,15 @@ from cinder.openstack.common import log
 from powervc.common import config
 from powervc.common.gettextutils import _
 from powervc.volume.manager import constants
-from powervc.common import messaging
 from powervc.volume.driver import service as pvcservice
 from powervc.common import utils
 from powervc.common.client import delegate as ctx_delegate
+
+from powervc.common import messaging
+
+from oslo.messaging.notify import listener
+from oslo.messaging import target
+from oslo.messaging import transport
 
 CONF = config.CONF
 LOG = log.getLogger(__name__)
@@ -145,79 +150,80 @@ class PowerVCCinderManager(service.Service):
         """
         Listen for out-of-band changes made in PowerVC.
 
-        This method creates the connection to the PowerVC Qpid broker and
+        This method creates the listner to the PowerVC AMQP broker and
         sets up handlers so that any changes made directly in PowerVC are
         reflected in the local OS.
 
         :param: ctx The security context
         """
         LOG.debug("Enter _create_powervc_listeners method")
-        # Function to call if we lose the Qpid connection and then get it back
 
-        def reconnect_handler():
-            LOG.debug('Re-established connection to Qpid broker, sync all '
-                      'volume types on next sync interval')
-            self.full_volume_type_sync_required = True
-
-        # Create Qpid connection and listener
-        LOG.debug("Building connection with AMQP server")
-        conn = messaging.PowerVCConnection(reconnect_handler=reconnect_handler,
-                                           context=ctx,
-                                           log=logging)
-        LOG.debug("Creating message listener to linsten PowerVC event")
-        listener = conn.create_listener('cinder', 'notifications.info')
+        trans = transport.get_transport(cfg.AMQP_POWERVC_CONF)
+        targets = [
+            target.Target(exchange='cinder', topic='notifications.info')
+        ]
+        endpoint = messaging.NotificationEndpoint(log=LOG, sec_context=ctx)
 
         # Volume type creation
         LOG.debug(_("Register event handler for %s event ")
                   % constants.EVENT_VOLUME_TYPE_CREATE)
-        listener.register_handler(constants.EVENT_VOLUME_TYPE_CREATE,
+        endpoint.register_handler(constants.EVENT_VOLUME_TYPE_CREATE,
                                   self._handle_powervc_volume_type_create)
 
         # Volume type deletion
         LOG.debug(_("Register event handler for %s event ")
                   % constants.EVENT_VOLUME_TYPE_DELETE)
-        listener.register_handler(constants.EVENT_VOLUME_TYPE_DELETE,
+        endpoint.register_handler(constants.EVENT_VOLUME_TYPE_DELETE,
                                   self._handle_powervc_volume_type_delete)
 
         # Volume type extra spec changes
         LOG.debug(_("Register event handler for %s event ")
                   % constants.EVENT_VOLUME_TYPE_EXTRA_SPECS_UPDATE)
-        listener.register_handler([
+        endpoint.register_handler([
             constants.EVENT_VOLUME_TYPE_EXTRA_SPECS_UPDATE],
             self._handle_powervc_volume_type_extra_spec_update)
 
         LOG.debug(_("Register event handler for %s event ")
                   % constants.EVENT_VOLUME_CREATE_END)
-        listener.register_handler([constants.EVENT_VOLUME_CREATE_END],
+        endpoint.register_handler([constants.EVENT_VOLUME_CREATE_END],
                                   self._handle_powervc_volume_create)
 
         LOG.debug(_("Register event handler for %s event ")
                   % constants.EVENT_VOLUME_IMPORT_END)
-        listener.register_handler([constants.EVENT_VOLUME_IMPORT_END],
+        endpoint.register_handler([constants.EVENT_VOLUME_IMPORT_END],
                                   self._handle_powervc_volume_create)
 
         LOG.debug(_("Register event handler for %s event ")
                   % constants.EVENT_VOLUME_DELETE_END)
-        listener.register_handler([constants.EVENT_VOLUME_DELETE_END],
+        endpoint.register_handler([constants.EVENT_VOLUME_DELETE_END],
                                   self._handle_powervc_volume_delete)
 
         LOG.debug(_("Register event handler for %s event ")
                   % constants.EVENT_VOLUME_UPDATE)
-        listener.register_handler([constants.EVENT_VOLUME_UPDATE],
+        endpoint.register_handler([constants.EVENT_VOLUME_UPDATE],
                                   self._handle_powervc_volume_update)
 
         LOG.debug(_("Register event handler for %s event ")
                   % constants.EVENT_VOLUME_ATTACH_END)
-        listener.register_handler([constants.EVENT_VOLUME_ATTACH_END],
+        endpoint.register_handler([constants.EVENT_VOLUME_ATTACH_END],
                                   self._handle_powervc_volume_update)
 
         LOG.debug(_("Register event handler for %s event ")
                   % constants.EVENT_VOLUME_DETACH_END)
-        listener.register_handler([constants.EVENT_VOLUME_DETACH_END],
+        endpoint.register_handler([constants.EVENT_VOLUME_DETACH_END],
                                   self._handle_powervc_volume_update)
 
+        endpoints = [
+            endpoint,
+        ]
+
         LOG.debug("Starting to listen...... ")
-        conn.start()
+
+        pvc_cinder_listener = listener.\
+            get_notification_listener(trans, targets, endpoints,
+                                      allow_requeue=False)
+        messaging.start_notification_listener(pvc_cinder_listener)
+
         LOG.debug("Exit _create_powervc_listeners method")
 
     def _periodic_volume_type_sync(self, context, vol_type_ids=None):
@@ -373,16 +379,19 @@ class PowerVCCinderManager(service.Service):
 
         self.tg.add_timer(sync_interval, sync)
 
-    def _handle_powervc_volume_type_create(self, context, message):
-        """
-        Handle instance create messages sent from PowerVC.
+    def _handle_powervc_volume_type_create(self,
+                                           context=None,
+                                           ctxt=None,
+                                           event_type=None,
+                                           payload=None):
+        """Handle instance create messages sent from PowerVC.
 
         :param: context The security context
-        :param: message The AMQP message sent from OpenStack (dictionary)
+        :param: ctxt message context
+        :param: event_type message event type
+        :param: payload The AMQP message sent from OpenStack (dictionary)
         """
-        LOG.debug("Handling notification: %s" % message.get('event_type'))
 
-        payload = message.get('payload')
         vol_type = payload.get('volume_types')
         if(vol_type is None):
             LOG.warning("Null volume type in volume.create notification")
@@ -430,16 +439,19 @@ class PowerVCCinderManager(service.Service):
                 if volume_backend_name == storage_hostname:
                     self._insert_pvc_volume_type(context, vol_type)
 
-    def _handle_powervc_volume_type_delete(self, context, message):
-        """
-        Handle instance delete messages sent from PowerVC.
+    def _handle_powervc_volume_type_delete(self,
+                                           context=None,
+                                           ctxt=None,
+                                           event_type=None,
+                                           payload=None):
+        """Handle instance delete messages sent from PowerVC.
 
         :param: context The security context
-        :param: message The AMQP message sent from OpenStack (dictionary)
+        :param: ctxt message context
+        :param: event_type message event type
+        :param: payload The AMQP message sent from OpenStack (dictionary)
         """
-        LOG.debug("Handling notification: %s" % message.get('event_type'))
 
-        payload = message.get('payload')
         vol_type = payload.get('volume_types')
         if(vol_type is None):
             LOG.warning("Null volume type, ignore volume.create notification")
@@ -460,18 +472,21 @@ class PowerVCCinderManager(service.Service):
         # Remove the instance from the local OS
         self._unregister_volume_types(context, pvc_vol_type_id)
 
-    def _handle_powervc_volume_type_extra_spec_update(self, context, message):
-        """
-        Handle instance state changes sent from PowerVC. This includes
+    def _handle_powervc_volume_type_extra_spec_update(self,
+                                                      context=None,
+                                                      ctxt=None,
+                                                      event_type=None,
+                                                      payload=None):
+        """Handle instance state changes sent from PowerVC. This includes
         instance update and all other state changes caused by events like
         power on, power off, resize, live migration, and snapshot.
 
         :param: context The security context
-        :param: message The AMQP message sent from OpenStack (dictionary)
+        :param: ctxt message context
+        :param: event_type message event type
+        :param: payload The AMQP message sent from OpenStack (dictionary)
         """
-        event_type = message.get('event_type')
-        LOG.debug("Handling notification: %s" % event_type)
-        payload = message.get('payload')
+
         pvc_vol_type_id = payload.get('type_id')
         if(pvc_vol_type_id is None):
             LOG.debug('Null volume type id, ignore extra specs update')
@@ -720,16 +735,19 @@ class PowerVCCinderManager(service.Service):
                 break
         return found
 
-    def _handle_powervc_volume_create(self, context, message):
-        """
-        Handle volume create messages sent from PowerVC.
+    def _handle_powervc_volume_create(self,
+                                      context=None,
+                                      ctxt=None,
+                                      event_type=None,
+                                      payload=None):
+        """Handle volume create messages sent from PowerVC.
 
         :param: context The security context
-        :param: message The AMQP message sent from OpenStack (dictionary)
+        :param: ctxt message context
+        :param: event_type message event type
+        :param: payload The AMQP message sent from OpenStack (dictionary)
         """
-        LOG.debug("Handling notification: %s" % message.get('event_type'))
 
-        payload = message.get('payload')
         pvc_volume_id = payload.get('volume_id')
 
         # If the volume already exists locally then ignore
@@ -751,16 +769,19 @@ class PowerVCCinderManager(service.Service):
         LOG.debug('Volume not accessible, ignored!')
         return
 
-    def _handle_powervc_volume_delete(self, context, message):
-        """
-        Handle volume create messages sent from PowerVC.
+    def _handle_powervc_volume_delete(self,
+                                      context=None,
+                                      ctxt=None,
+                                      event_type=None,
+                                      payload=None):
+        """Handle volume create messages sent from PowerVC.
 
         :param: context The security context
-        :param: message The AMQP message sent from OpenStack (dictionary)
+        :param: ctxt message context
+        :param: event_type message event type
+        :param: payload The AMQP message sent from OpenStack (dictionary)
         """
-        LOG.debug("Handling notification: %s" % message.get('event_type'))
 
-        payload = message.get('payload')
         pvc_volume_id = payload.get('volume_id')
 
         # If the volume does not already exist locally then ignore
@@ -771,16 +792,19 @@ class PowerVCCinderManager(service.Service):
 
         self._unregister_volumes(context, local_volume.get('id'))
 
-    def _handle_powervc_volume_update(self, context, message):
-        """
-        Handle volume create messages sent from PowerVC.
+    def _handle_powervc_volume_update(self,
+                                      context=None,
+                                      ctxt=None,
+                                      event_type=None,
+                                      payload=None):
+        """Handle volume create messages sent from PowerVC.
 
         :param: context The security context
-        :param: message The AMQP message sent from OpenStack (dictionary)
+        :param: ctxt message context
+        :param: event_type message event type
+        :param: payload The AMQP message sent from OpenStack (dictionary)
         """
-        LOG.debug("Handling notification: %s" % message.get('event_type'))
 
-        payload = message.get('payload')
         pvc_volume_id = payload.get('volume_id')
 
         local_volume = self._get_local_volume_by_pvc_id(context, pvc_volume_id)
