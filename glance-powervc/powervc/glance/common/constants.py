@@ -66,6 +66,9 @@ LOCAL = 'local'
 EVENT_TYPE = 'type'
 EVENT_CONTEXT = 'context'
 EVENT_MESSAGE = 'message'
+EVENT_PAYLOAD = 'payload'
+REAL_EVENT_TYPE = 'real_type'
+REAL_EVENT_CONTEXT = 'ctxt'
 
 # Event queue event types
 LOCAL_IMAGE_EVENT = LOCAL
@@ -77,7 +80,7 @@ STARTUP_SCAN_EVENT = 'startup'
 IMAGE_EVENT_EXCHANGE = 'glance'
 
 # Image notification event topic
-IMAGE_EVENT_TOPIC = 'notifications.info'
+IMAGE_EVENT_TOPIC = 'notifications'
 
 # Image notification event types
 IMAGE_EVENT_TYPE_ALL = 'image.*'

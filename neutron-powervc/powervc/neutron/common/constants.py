@@ -51,7 +51,7 @@ PORT_UPDATE_FIELDS = ['name']
 
 # Qpid message handling
 QPID_EXCHANGE = 'neutron'
-QPID_TOPIC = 'notifications.info'
+QPID_TOPIC = 'notifications'
 
 EVENT_END_THREAD = 'thread.end'
 EVENT_FULL_SYNC = 'full.sync'
