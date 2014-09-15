@@ -39,6 +39,7 @@ class PowerVCDriver(driver.ComputeDriver):
     password for the target IBM PowerVC system.
     """
     nc = None
+    cached_root_device_map = {}
 
     def __init__(self, virtapi):
         self.virtapi = virtapi
@@ -1431,3 +1432,18 @@ class PowerVCDriver(driver.ComputeDriver):
 
         localvolume = localvolumes[0]
         return localvolume.id
+
+    def get_pvc_root_device_name(self, pvc_id):
+        if not self.cached_root_device_map.get(pvc_id):
+            return self.cached_root_device_map.get(pvc_id)
+        list_all_volumes = self._service._pvccinderclient.\
+            volumes.list_all_volumes
+        volume_search_opts = {'metadata': {'is_boot_volume': 'True'}}
+        pvcvolumes = list_all_volumes(search_opts=volume_search_opts)
+        for pvcvolume in pvcvolumes:
+            pvcvolume_attachments = pvcvolume.attachments
+            if len(pvcvolume_attachments) == 0:
+                continue
+            device_name = pvcvolume_attachments[0].get('device')
+            self.cached_root_device_map[pvc_id] = device_name
+        return self.cached_root_device_map.get(pvc_id)

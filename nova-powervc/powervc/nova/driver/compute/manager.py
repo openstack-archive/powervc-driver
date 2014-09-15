@@ -359,7 +359,10 @@ class PowerVCCloudManager(manager.Manager):
         else:
             ephemeral_gb = flavor.get('ephemeral_gb')
 
-        root_device_name = None  # Don't know what is this for.
+        # need to set the root_device_name for the volume attachment auto
+        # assigned device name purpose
+        root_device_name = self._get_instance_root_device_name(pvc_instance,
+                                                               db_instance)
 
         address4 = pvc_instance['accessIPv4']
         # Has to be a valid IP, or null
@@ -1921,3 +1924,23 @@ class PowerVCCloudManager(manager.Manager):
                                                                     nets,
                                                                     port_ids)
                     LOG.info("_fix_instance_nw_info" + str(nw_info))
+
+    def _get_instance_root_device_name(self, pvc_instance, db_instance):
+        root_device_name = '/dev/sda'
+        if db_instance and db_instance.get('root_device_name'):
+            LOG.info("root_device_name %s from local db"
+                     % db_instance.get('root_device_name'))
+            return db_instance.get('root_device_name')
+        if not pvc_instance:
+            LOG.info("set root_device_name as default: %s " % root_device_name)
+            return root_device_name
+        pvc_id = pvc_instance.get('id')
+        if not pvc_id:
+            LOG.info("set root_device_name as default: %s " % root_device_name)
+            return root_device_name
+        pvc_root_device_name = self.driver.get_pvc_root_device_name(pvc_id)
+        if pvc_root_device_name:
+            root_device_name = pvc_root_device_name
+            LOG.info("set root_device_name as powervc boot volume device "
+                     "name: %s " % root_device_name)
+        return root_device_name
