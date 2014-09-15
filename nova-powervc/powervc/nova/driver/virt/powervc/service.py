@@ -54,6 +54,8 @@ class PowerVCService(object):
         from powervc.common.client import factory
         self._cinderclient = factory.\
             LOCAL.new_client(str(common_constants.SERVICE_TYPES.volume))
+        self._pvccinderclient = factory.\
+            POWERVC.new_client(str(common_constants.SERVICE_TYPES.volume))
         self.max_tries = CONF.powervc.volume_max_try_times
 
         self.longrun_loop_interval = CONF.powervc.longrun_loop_interval
