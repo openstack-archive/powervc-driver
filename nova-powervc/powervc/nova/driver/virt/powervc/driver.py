@@ -1431,3 +1431,23 @@ class PowerVCDriver(driver.ComputeDriver):
 
         localvolume = localvolumes[0]
         return localvolume.id
+
+    def get_pvc_root_device_name(self, pvc_id):
+        list_all_volumes = self._service._pvccinderclient.\
+            volumes.list_all_volumes
+        volume_search_opts = {'metadata':
+                              {'instance_uuid': pvc_id,
+                               'is_boot_volume': 'True'}}
+        pvcvolumes = list_all_volumes(search_opts=volume_search_opts)
+        if len(pvcvolumes) == 0:
+            return None
+        if len(pvcvolumes) > 1:
+            LOG.warning(_('More than one volume in powervc cinder '
+                          'match the boot volume for powervc instance: %s' %
+                          (pvc_id)))
+
+        pvcvolume = pvcvolumes[0]
+        pvcvolume_attachments = pvcvolume.attachments
+        if len(pvcvolume_attachments) == 0:
+            return None
+        return pvcvolume_attachments[0].get('device')

@@ -97,6 +97,13 @@ class TestSyncInstance(unittest.TestCase):
         flavors.save_flavor_info(dict(), self.osflavor.os_flavor)\
             .AndReturn("system_metadata")
 
+        self.moxer.StubOutWithMock(self.PowerVCCloudManager,
+                                   "_get_instance_root_device_name")
+
+        self.PowerVCCloudManager._get_instance_root_device_name(pvc_instance,
+                                                           None)\
+            .AndReturn("/dev/sda")
+
         self.moxer.ReplayAll()
 
         ins, image, flavor = self.PowerVCCloudManager.\

@@ -76,7 +76,7 @@ class FakeOSInstance():
             "72bb2b5af241413172ad4cf38354e727ce317843ee2432c36439643c"
         self.os_instance['hostname'] = "IVT-Test17"
         self.os_instance['access_ip_v4'] = None
-        self.os_instance['root_device_name'] = None
+        self.os_instance['root_device_name'] = "/dev/sda"
         self.os_instance['system_metadata'] = "system_metadata"
         self.os_instance['vm_state'] = "active"
         self.os_instance['task_state'] = None
