@@ -92,11 +92,20 @@ class Client(base.ClientExtension):
                 body[field] = port[field]
         if self.os == POWERVC_OS:
             body['device_owner'] = constants.POWERVC_DEVICE_OWNER
+            body['device_id'] = constants.POWERVC_DEVICE_ID
         elif port.get('device_id'):
-            # If we are creating a local port and the PowerVC port has a
-            # device id, then set the device id of the new local port to be
-            # "pvc:" + PowerVC device id.
-            body['device_id'] = constants.RSVD_PORT_PREFIX + port['device_id']
+            dev_id = port['device_id']
+            if dev_id == constants.POWERVC_DEVICE_ID:
+                # PowerVC locked port, simply synchronize them to local
+                body['device_id'] = dev_id
+                if 'device_owner' in port:
+                    body['device_owner'] = port['device_owner']
+            else:
+                # If we are creating a local port and the PowerVC port has a
+                # device id, then set the device id of the new local port to be
+                # "pvc:" + PowerVC device id.
+                body['device_id'] = constants.RSVD_PORT_PREFIX\
+                                    + dev_id
         fixed_ips = port.get('fixed_ips')
         if not fixed_ips:
             return None
