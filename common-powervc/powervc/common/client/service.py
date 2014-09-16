@@ -8,6 +8,7 @@ import powervc.common.client.delegate as delegate
 from glanceclient.openstack.common import importutils
 from powervc.common.constants import SERVICE_TYPES as SERVICE_TYPES
 from powervc.common import netutils
+from powervc.common.client.extensions.glance import Extended_V2_Client
 
 LOG = logging.getLogger(__name__)
 
@@ -146,6 +147,16 @@ class GlanceService(AbstractService):
         url = self.url
         if not url.endswith('/'):
             url += '/'
+        if 'v2' in self.version:
+            client_info = {}
+            client_info['endpoint'] = self.url
+            client_info['cacert'] = self.base_args['cacert']
+            client_info['insecure'] = self.base_args['insecure']
+            client_info['token'] = self.keystone.auth_token
+            extened_client = Extended_V2_Client(client_info)
+            return (self._extend(self._patch(extened_client),
+                                 client_extension,
+                                 *extension_args))
         return (self.
                 _extend(self.
                         _patch(self.clazz(url, token=self.keystone.auth_token,
