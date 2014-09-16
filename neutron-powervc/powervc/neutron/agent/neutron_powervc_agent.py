@@ -519,10 +519,11 @@ class PowerVCNeutronAgent(object):
         db_port = self.db.create_port(port, sync_key, local_id=local_id)
         # Determine which instance owns this port
         device_id = port.get('device_id')
-        # Determine if the instance is (HyperV / KVM) or PowerVC
+        # Determine if the instance is (HyperV / KVM) or PowerVC or Lock Port
         # if PowerVC, return.
-        # If HyperV/KVM, reserve IP address in PowerVC
-        if not self.local.is_instance_on_power(device_id):
+        # If HyperV/KVM or Lock Port, reserve IP address in PowerVC
+        if device_id == constants.POWERVC_DEVICE_ID\
+                or not self.local.is_instance_on_power(device_id):
             new_port = self.pvc.create_port(port)
             if new_port:
                 self.db.set_port_pvc_id(db_port, new_port.get('id'))
@@ -624,7 +625,8 @@ class PowerVCNeutronAgent(object):
             self.db.delete_port(db_port)
             return
         device_id = pvc_port.get('device_id')
-        if device_id and len(device_id) > 0:
+        if device_id and len(device_id) > 0\
+                and device_id != constants.POWERVC_DEVICE_ID:
             LOG.info(_("PowerVC port %s can not be deleted. Port is in-use "
                        "by VM %s."), pvc_id, device_id)
             LOG.info(_("Recreate the local port to prevent this IP "
@@ -661,7 +663,7 @@ class PowerVCNeutronAgent(object):
     def _delete_local_port(self, local_port, db_port):
         # complex logic here on how to handle it
         # some possible cases for this local port:
-        # 1) device_id = None occurs when lock IP address done using SCE UI.
+        # 1) device_id = PowerVC-Lock occurs when lock IP address done.
         # Delete the local port
         # 2) device_owner = network:router_interface  (see issue 173350).
         # re-create the PVC port
@@ -1168,7 +1170,8 @@ class PowerVCNeutronAgent(object):
                     self.db.delete_port(db_port)
                     continue
                 device_id = pvc_port.get('device_id')
-                if device_id and len(device_id) > 0:
+                if device_id and len(device_id) > 0\
+                        and device_id != constants.POWERVC_DEVICE_ID:
                     LOG.info(_("PVC port %s can not be deleted. Port is "
                                "in-use by VM %s."), pvc_id, device_id)
                     LOG.info(_("Recreate the local port to prevent this IP "
@@ -1206,7 +1209,8 @@ class PowerVCNeutronAgent(object):
                 local_port = local_ports.get(local_id)
                 # Determine which instance owns this port
                 device_id = local_port.get('device_id')
-                if not self.local.is_instance_on_power(device_id):
+                if device_id == constants.POWERVC_DEVICE_ID\
+                        or not self.local.is_instance_on_power(device_id):
                     # Create a port on PVC if this is a local instance,
                     # so PVC won't use its IP address.
                     pvc_port = self.pvc.create_port(local_port)

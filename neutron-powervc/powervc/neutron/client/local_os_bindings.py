@@ -227,7 +227,8 @@ class Client(neutron_client_bindings.Client):
             return False
         # Check to see if this is a reserved port that we created while we
         # are waiting for the PowerVC side to go away
-        if uuid.startswith(constants.RSVD_PORT_PREFIX):
+        if uuid.startswith(constants.RSVD_PORT_PREFIX)\
+                or uuid == constants.POWERVC_DEVICE_ID:
             return False
 
         if not self.nova:
