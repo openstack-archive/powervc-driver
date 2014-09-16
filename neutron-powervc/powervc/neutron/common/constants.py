@@ -8,6 +8,7 @@ Created on Aug 2, 2013
 
 # Device owner value for Neutron ports we create
 POWERVC_DEVICE_OWNER = 'network:IBM SmartCloud'
+POWERVC_LOCKDEVICE_ID = 'PowerVC-Lock'
 RSVD_PORT_PREFIX = 'pvc:'
 
 # Mapping enum values
