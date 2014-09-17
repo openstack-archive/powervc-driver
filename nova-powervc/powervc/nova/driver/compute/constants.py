@@ -17,7 +17,10 @@ SCG_KEY = "powervm:storage_connectivity_group"
 EXTRA_SPECS = "extra_specs"
 IS_PUBLIC = "os-flavor-access:is_public"
 
-POWERVC_SUPPORTED_INSTANCES = [('ppc64', 'powervm', 'hvm')]
+# NOTE(mriedem): The hypervisor type is 'phyp' rather than 'powervm' so that
+# this works with the canonical list of known hypervisor types in
+# nova.compute.hvtype for scheduling.
+POWERVC_SUPPORTED_INSTANCES = [('ppc64', 'phyp', 'hvm')]
 
 # Suffix to append to sync event notifications
 SYNC_EVENT_SUFFIX = 'sync'
