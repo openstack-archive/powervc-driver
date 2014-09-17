@@ -21,6 +21,8 @@ prog=openstack-cinder-powervc
 exec="/opt/ibm/openstack/powervc-driver/bin/cinder-$suffix"
 config="/etc/powervc/powervc.conf"
 cinderconf="/etc/cinder/cinder.conf"
+amqp_os_conf="/etc/powervc/amqp-openstack.conf"
+amqp_pvc_conf="/etc/powervc/amqp-powervc.conf"
 pidfile="/var/run/$suffix/cinder-$suffix.pid"
 logfile="/var/log/$suffix/cinder-$suffix.log"
 
@@ -32,7 +34,7 @@ start() {
     [ -x $exec ] || exit 5
     [ -f $config ] || exit 6
     echo -n $"Starting $prog: "
-    daemon --user powervc --pidfile $pidfile "$exec --config-file $config --config-file $cinderconf --logfile $logfile &>/dev/null & echo \$! > $pidfile"
+    daemon --user powervc --pidfile $pidfile "$exec --config-file $amqp_os_conf --config-file $amqp_pvc_conf --config-file $config --config-file $cinderconf --logfile $logfile &>/dev/null & echo \$! > $pidfile"
     retval=$?
     echo
     [ $retval -eq 0 ] && touch $lockfile
