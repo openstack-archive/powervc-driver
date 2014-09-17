@@ -21,6 +21,8 @@ prog=openstack-nova-powervc
 exec="/opt/ibm/openstack/powervc-driver/bin/nova-$suffix"
 config="/etc/$suffix/$suffix.conf"
 novaconf="/etc/nova/nova.conf"
+amqp_os_conf="/etc/powervc/amqp-openstack.conf"
+amqp_pvc_conf="/etc/powervc/amqp-powervc.conf"
 pidfile="/var/run/$suffix/nova-$suffix.pid"
 logfile="/var/log/$suffix/nova-$suffix.log"
 
@@ -32,7 +34,7 @@ start() {
     [ -x $exec ] || exit 5
     [ -f $config ] || exit 6
     echo -n $"Starting $prog: "
-    daemon --user powervc --pidfile $pidfile "$exec --config-file $config --config-file $novaconf --logfile $logfile &>/dev/null & echo \$! > $pidfile"
+    daemon --user powervc --pidfile $pidfile "$exec --config-file $amqp_os_conf --config-file $amqp_pvc_conf --config-file $config --config-file $novaconf --logfile $logfile &>/dev/null & echo \$! > $pidfile"
     retval=$?
     echo
     [ $retval -eq 0 ] && touch $lockfile
