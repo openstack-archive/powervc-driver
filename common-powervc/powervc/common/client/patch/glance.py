@@ -20,6 +20,7 @@ def patch_client(service_wrapper, client):
     def _patched_http_request(url, method, **kwargs):
         # patch glance HTTPClient to use our keystone for tokens
         http_client.auth_token = service_wrapper.keystone.auth_token
+        http_client.session.headers["X-Auth-Token"] = http_client.auth_token
         if url.startswith('/'):
             url = url[1:]
         return org_http_request(method, url, **kwargs)
