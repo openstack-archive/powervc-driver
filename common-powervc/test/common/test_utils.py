@@ -1207,7 +1207,7 @@ class UtilsFakeTest(utils.TestCase):
         self.utils._novaclient = mock.MagicMock()
         self.utils.get_image_scgs('imageUUID')
         self.utils._novaclient.storage_connectivity_groups.\
-            list_for_image.assert_called_with('imageUUID')
+            list_for_image.assert_called_with('imageUUID', False)
 
         scgs = self.utils.get_image_scgs(None)
         self.assertEqual(scgs, [])
@@ -1283,6 +1283,39 @@ class UtilsFakeTest(utils.TestCase):
 
         pool = eventlet.GreenPool()
         pool.imap(cache_task, [str(i) for i in xrange(1001)])
+
+    def test_filter_out_available_scgs(self):
+        class FakeScg(object):
+            def __init__(self, scgid, name):
+                self.id = scgid
+                self.display_name = name
+
+        available_powervc_scgs = \
+            {FakeScg('sdfb541cb', 'Auto-SCG for Registered SAN'),
+             FakeScg('f4b541cb', 'SCG Sample')}
+        from powervc.common import config as cg
+        cg.CONF.powervc.storage_connectivity_group = ['SCG Sample']
+        scg_to_use_list = \
+            self.utils.filter_out_available_scgs(available_powervc_scgs)
+        self.assertEqual(len(scg_to_use_list), 1)
+        for scg in scg_to_use_list:
+            self.assertEqual(scg.id, 'f4b541cb')
+
+    def test_get_hypervisor_by_name(self):
+        class FakeHypervisor(object):
+            def __init__(self, hypervisorid, service, hypervisor_hostname):
+                self.id = hypervisorid
+                self.service = service
+                self.hypervisor_hostname = hypervisor_hostname
+        hypervisor_lists = {FakeHypervisor('1234',
+                                           {'id': 1, 'host': 'compute1'},
+                                           'hyper1'),
+                            FakeHypervisor('5678',
+                                           {'id': 2, 'host': 'compute2'},
+                                           'hyper2')}
+        self.utils._novaclient.hypervisors = hypervisor_lists
+        test_hypervisor = self.utils.get_hypervisor_by_name('compute1')
+        self.assertEqual(test_hypervisor.service['host'], 'compute1')
 
 
 class FakeDriver(object):
