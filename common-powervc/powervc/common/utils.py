@@ -503,6 +503,12 @@ class Utils(object):
 
         return accessible_storage_providers
 
+    def get_all_storage_templates(self):
+        """
+        Get all storage templates from PowerVC
+        """
+        return self._cinderclient.volume_types.list_all_storage_templates()
+
     def get_multi_scg_accessible_storage_templates(self,
                                                    scg_uuid_list,
                                                    scg_name_list):
@@ -586,6 +592,37 @@ class Utils(object):
         LOG.info(_('accessible_storage_templates: %s' %
                    (accessible_storage_templates)))
         return accessible_storage_templates
+
+    def get_scg_accessible_storage_templates_extended(self,
+                                                      scg_list,
+                                                      all_storage_templates):
+
+        """
+        Get a dict that stores the scgs and the corresponding
+        accessible storage templates . The key is scg id ,
+        and the value is the storage templates.
+
+        :param: scg_list : All available Storage Connectivity Groups
+        :param: all_storage_templates : All available storage
+                                        templates from PowerVC
+        :return: The dict to store the scgs and
+                 the corresponding storage templates
+        """
+        if scg_list is not None:
+            scg_storage_templates = {}
+            for scg in scg_list:
+                accessible_storage_templates = []
+                volume_types = scg.list_all_volume_types()
+                volume_type_ids = []
+                for vol_type in volume_types:
+                    volume_type_ids.append(vol_type.__dict__.get("id"))
+                for storage_template in all_storage_templates:
+                    if(storage_template.__dict__.get("id") in volume_type_ids):
+                        accessible_storage_templates.append(storage_template)
+                scg_storage_templates[scg.id] = accessible_storage_templates
+            return scg_storage_templates
+        else:
+            return {}
 
     def get_multi_scg_accessible_volumes(self,
                                          scg_uuid_list,
@@ -769,6 +806,30 @@ class Utils(object):
             LOG.debug(_('An error occurred getting the user list: %s'), e)
         LOG.debug(_('Unable to find staging user: %s'), staginguser)
         raise exception.StagingUserNotFound(name=staginguser)
+
+    def get_image_scgs_dict(self, scg_list):
+        """
+        Get a dict that store the image and the corresponding scg list .
+        The key is the image UUID , and the value is the corresponding scg list
+
+        :param scg_list : All available Storage Connectivity Groups
+        :returns The dict to store the image and the corresponding scg list
+        """
+        if scg_list is not None:
+            image_scgs_dict = {}
+            for scg in scg_list:
+                image_id_list = self.get_scg_image_ids(scg.id)
+                for image_id in image_id_list:
+                    if image_id in image_scgs_dict.keys():
+                        scg_list = image_scgs_dict[image_id]
+                        scg_list.append(scg)
+                        image_scgs_dict[image_id] = scg_list
+                    else:
+                        scg_list = [scg]
+                        image_scgs_dict[image_id] = scg_list
+            return image_scgs_dict
+        else:
+            return {}
 
 
 def import_relative_module(relative_import_str, import_str):
