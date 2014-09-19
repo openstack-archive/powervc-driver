@@ -14,6 +14,7 @@ PVM_HYPERVISOR_TYPE = "powervm"
 
 # Flavor constants
 SCG_KEY = "powervm:storage_connectivity_group"
+STORAGE_TEMPLATE_KEY = "powervm:boot_volume_type"
 EXTRA_SPECS = "extra_specs"
 IS_PUBLIC = "os-flavor-access:is_public"
 

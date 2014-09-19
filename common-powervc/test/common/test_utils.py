@@ -1207,7 +1207,7 @@ class UtilsFakeTest(utils.TestCase):
         self.utils._novaclient = mock.MagicMock()
         self.utils.get_image_scgs('imageUUID')
         self.utils._novaclient.storage_connectivity_groups.\
-            list_for_image.assert_called_with('imageUUID')
+            list_for_image.assert_called_with('imageUUID', False)
 
         scgs = self.utils.get_image_scgs(None)
         self.assertEqual(scgs, [])

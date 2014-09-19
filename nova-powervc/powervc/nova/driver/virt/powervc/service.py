@@ -651,11 +651,22 @@ class PowerVCService(object):
         """
         createdServer = None
 
-        self.validate_update_scg(flavorDict)
-
         # extract activation data from instance
         meta = instance._metadata
         key_name = instance.key_name
+
+        extra_specs_key = constants.EXTRA_SPECS
+        scg_key = constants.SCG_KEY
+        storage_template_key = constants.STORAGE_TEMPLATE_KEY
+
+        if 'selected-scg' in meta.keys() and \
+           'selected-storage-template' in meta.keys():
+            flavorDict[extra_specs_key][scg_key] = meta['selected-scg']
+            flavorDict[extra_specs_key][storage_template_key] = \
+                meta['selected-storage-template']
+
+        self.validate_update_scg(flavorDict)
+
         # key_data = instance.key_data
         config_drive = instance._config_drive
         userdata = instance.user_data   # already base64 encoded by local OS
