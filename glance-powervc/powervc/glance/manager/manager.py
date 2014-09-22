@@ -2880,8 +2880,9 @@ class PowerVCImageManager(service.Service):
         else:
             LOG.debug(_("Did not process event: type:'%(event_type)s' type, "
                         "payload:'%(payload)s'"
-                        )
-                      % (event_type, payload)
+                        ) % {'event_type': event_type,
+                             'payload': payload,
+                             }
                       )
 
     def _process_pvc_image_update_event(self, v1image_dict):
