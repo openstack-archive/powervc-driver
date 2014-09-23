@@ -1,0 +1,9 @@
+Verified+2: Jenkins
+Code-Review-1: Drew Thorstensen <thorst@us.ibm.com>
+Code-Review+2: Terry Yao <yaohaif@cn.ibm.com>
+Workflow+1: Terry Yao <yaohaif@cn.ibm.com>
+Submitted-by: Jenkins
+Submitted-at: Tue, 23 Sep 2014 09:26:03 +0000
+Reviewed-on: https://review.openstack.org/121892
+Project: stackforge/powervc-driver
+Branch: refs/heads/master
