@@ -3,6 +3,7 @@
 import six
 import urllib
 from novaclient import base as client_base
+from novaclient import exceptions
 from novaclient.v1_1 import servers
 from novaclient.v1_1 import hypervisors
 from novaclient.v1_1 import images
@@ -10,6 +11,7 @@ from novaclient.v1_1 import flavors
 from novaclient.v1_1 import volumes
 from novaclient.v1_1.volume_types import VolumeType
 from powervc.common.client.extensions import base
+from powervc.common.gettextutils import _
 from powervc.common import utils
 import logging
 
@@ -21,7 +23,7 @@ class Client(base.ClientExtension):
     def __init__(self, client):
         super(Client, self).__init__(client)
         self.manager = PVCServerManager(client)
-        self.hypervisors = hypervisors.HypervisorManager(client)
+        self.hypervisors = PVCHypervisorManager(client)
         self.images = images.ImageManager(client)
         self.flavors = flavors.FlavorManager(client)
         self.storage_connectivity_groups = \
@@ -29,6 +31,66 @@ class Client(base.ClientExtension):
         self.volumes = volumes.VolumeManager(client)
         self.scg_images = SCGImageManager(client)
     # any extensions to std nova client go below
+
+
+class PVCHypervisorManager(hypervisors.HypervisorManager):
+    """
+    This HypervisorManager class is specific for extending PowerVC driver
+    feature to get/set the hypervisor status and maintenance mode.
+    """
+
+    def get_host_maintenance_mode(self, hostname):
+        """Get host maintenance mode by host name from PowerVC driver
+        """
+        # If cannot find hypervisor by hostname, will raise
+        # itemNotFoundException from novaclient, just raise 
+        # to upper layer to handle.
+        hypervisors = self.search(hostname)
+        
+        if not hypervisors[0] or not self.get(hypervisors[0]):
+            raise exceptions.NotFound(_("No hypervisor matching '%s' could be"
+                                        " found.") 
+                                      % hostname)
+
+        hypervisor = self.get(hypervisors[0])
+
+        # Either "ok" (maintenance off), "entering", "on" or "error"
+        # compatible with previous powervc version, if no such property
+        # set as "ok"
+        maintenance_status = getattr(hypervisor, "maintenance_status", "ok")
+        # Either the empty string (i.e., not in maintenance),
+        # "none": dont migrate anything
+        # "active-only": migrate active-only vm
+        # "all": migrate all vm
+        maintenance_migration_action = \
+            getattr(hypervisor, "maintenance_migration_action", "none")
+
+        return {"maintenance_status": maintenance_status,
+                "maintenance_migration_action": maintenance_migration_action}
+
+    def update_host_maintenance_mode(self, hostname, enabled, migrate):
+        """Update host maintenance mode status.
+        :hostname: The hostname of the hypervisor
+        :enabled: should be "enable" or "disable"
+        :migrate: should be
+        "none", do not migrate any vm
+        "active-only", migrate only active vm
+        "all", migrate all vm
+        """
+        # Refer to PowerVC HLD host maintenance mode chapter
+        url = "/ego/prs/hypervisor_maintenance/%s" % hostname
+        body = {"status": enabled,
+                "migrate": migrate}
+
+        # send set maintenance mode request by put http method 
+        _resp, resp_body = self.api.client.put(url, body=body)
+
+        # check response content
+        if "hypervisor_maintenance" not in resp_body:
+            raise exceptions.NotFound(_("response body doesn't contain "
+                                        "maintenance status info for %s.") 
+                                      % hostname)
+        return resp_body
 
 
 class PVCServerManager(servers.ServerManager):
@@ -291,6 +353,7 @@ class PVCServerManager(servers.ServerManager):
         return body
 
     def set_host_maintenance_mode(self, host, mode):
+        import pdb;pdb.set_trace()
         url = "/ego/prs/hypervisor_maintenance/%s" % host
         if mode:
             status = "enable"
