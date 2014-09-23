@@ -35,6 +35,8 @@ if 'powervc' in sys.argv[0]:
                  + " amqp-openstack.conf(or openstack-neutron.conf)"
                  + " are required.")
     else:
+        if argv1_index > argv2_index:
+            argv1_index, argv2_index = argv2_index, argv1_index
         sys.argv = (sys.argv[:argv1_index]
                     + sys.argv[argv1_index+2:argv2_index]
                     + sys.argv[argv2_index+2:])
