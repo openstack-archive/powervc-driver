@@ -17,6 +17,7 @@ from powervc.common import config
 from nova.openstack.common import service
 from nova.openstack.common import log as logging
 from nova.openstack.common import timeutils
+from nova.openstack.common import jsonutils
 from glanceclient.v1 import images as v1images
 from glanceclient.exc import CommunicationError
 from glanceclient.exc import HTTPNotFound
@@ -231,6 +232,11 @@ class PowerVCImageManager(service.Service):
             local_v2client = self._get_local_v2_client()
             v2local_images = local_v2client.images
 
+            # Get image_scg_dict and scg_storage_templates_dict for
+            # the special property image_topology format
+            image_scgs_dict, scg_storage_templates_dict = \
+                self._get_dicts_for_extra_image_property()
+
             # When catching exceptions during sync operations we will look for
             # CommunicationError, and raise those so we don't waste time
             # trying to process all images when there is a connection failure.
@@ -277,6 +283,15 @@ class PowerVCImageManager(service.Service):
                         if uuid in self.ids_dict.keys():
                             self.ids_dict.pop(uuid)
                 else:
+                    # Add an extra property named image_topology , which allows
+                    # user to select a SCG/Storage Template when booting an VM
+                    pvc_image = pvc_image_dict[uuid]
+                    if pvc_image:
+                        pvc_image = \
+                            self._insert_extra_property_image_topology(
+                                pvc_image,
+                                image_scgs_dict,
+                                scg_storage_templates_dict)
 
                     # Update the image if it has changed. (Right now, always
                     # update it, and update all fields). Update using the
@@ -326,6 +341,14 @@ class PowerVCImageManager(service.Service):
                         # that are accessible from our Storage Connectivity
                         # Group
                         if status and status == 'active':
+                            # Add an extra property named image_topology ,
+                            # which allows user to select a SCG/Storage
+                            # Template when booting an VM
+                            pvc_image = \
+                                self._insert_extra_property_image_topology(
+                                    pvc_image,
+                                    image_scgs_dict,
+                                    scg_storage_templates_dict)
 
                             # Add or activate the local image
                             self._add_or_activate_local_image(
@@ -463,6 +486,11 @@ class PowerVCImageManager(service.Service):
             cur_local_image_set = set(local_image_dict)
             cur_pvc_image_set = set(pvc_image_dict)
 
+            # Get image_scg_dict and scg_storage_templates_dict for
+            # the special property image_topology format
+            image_scgs_dict, scg_storage_templates_dict = \
+                self._get_dicts_for_extra_image_property()
+
             # We only need to update sync images that are in both PowerVC and
             # the local hosting OS. If an image is missing from either side
             # it will be added or deleted, so no need to try to update it.
@@ -484,6 +512,21 @@ class PowerVCImageManager(service.Service):
                 pvc_image = pvc_image_dict[uuid]
                 local_updated = self._local_image_updated(uuid, local_image)
                 pvc_updated = self._pvc_image_updated(uuid, pvc_image)
+
+                # Add an extra property named image_topology , which allows
+                # user to select a SCG/Storage Template when booting an VM
+                pvc_image = \
+                    self._insert_extra_property_image_topology(
+                        pvc_image,
+                        image_scgs_dict,
+                        scg_storage_templates_dict)
+
+                if 'image_topology' not in local_image.properties or \
+                    local_image.properties['image_topology'] != \
+                        pvc_image.properties['image_topology']:
+                    if not pvc_updated:
+                        pvc_updated = True
+
                 local_checksum = \
                     self._get_image_checksum(local_image.to_dict())
                 pvc_checksum = self._get_image_checksum(pvc_image.to_dict())
@@ -543,11 +586,18 @@ class PowerVCImageManager(service.Service):
                                'the local hosting OS to PowerVC'),
                              local_image.name)
 
+                    # To avoid the image property image_topology is
+                    # synced to PowerVC side
+                    local_image = \
+                        self._filter_out_image_properties(local_image,
+                                                          ['image_topology'])
+
                     # Update sync local image to PowerVC
                     updated_image = self._update_pvc_image(uuid, local_image,
                                                            pvc_image,
                                                            v1pvc_images,
                                                            v2pvc_images)
+
                     if updated_image is None:
                         LOG.error(_('PowerVC image \'%s\' with UUID %s was not'
                                     ' updated during periodic image '
@@ -766,6 +816,15 @@ class PowerVCImageManager(service.Service):
                         # Only add images from PowerVC that are 'active', and
                         # that are accessible on our Storage Connectivity Group
                         if status and status == 'active':
+
+                            # Add an extra property named image_topology ,
+                            # which allows user to select a SCG/Storage
+                            # Template when booting an VM
+                            pvc_image = \
+                                self._insert_extra_property_image_topology(
+                                    pvc_image,
+                                    image_scgs_dict,
+                                    scg_storage_templates_dict)
 
                             # Add or activate the local image
                             self._add_or_activate_local_image(
@@ -1058,6 +1117,12 @@ class PowerVCImageManager(service.Service):
                            'merged master image to PowerVC for PowerVC UUID '
                            '%s'), master_image.name, uuid)
 
+                # To avoid the image property image_topology is
+                # synced to PowerVC side
+                master_image = \
+                    self._filter_out_image_properties(master_image,
+                                                      ['image_topology'])
+
                 # Update sync master image to PowerVC
                 LOG.debug(_('Master image for pvc: %s'), str(master_image))
                 updated_pvc_image = self._update_pvc_image(uuid, master_image,
@@ -1238,6 +1303,7 @@ class PowerVCImageManager(service.Service):
 
         # Reset the image properties
         master_image.properties = master_props
+        master_image._info['properties'] = master_props
         LOG.debug(_('Master image for merge: %s'), str(master_image))
 
     def _get_image(self, uuid, image_id, image_name, v1images, v2images):
@@ -2583,6 +2649,12 @@ class PowerVCImageManager(service.Service):
                              pvc_image.name, pvc_id)
                     return
 
+                # To avoid the image property image_topology is
+                # synced to PowerVC side
+                local_image = \
+                    self._filter_out_image_properties(local_image,
+                                                      ['image_topology'])
+
                 # Perform the image update to PowerVC
                 image = self._update_pvc_image(pvc_id, local_image, pvc_image,
                                                v1pvc_images, v2pvc_images)
@@ -3718,6 +3790,109 @@ class PowerVCImageManager(service.Service):
                         filtered_props[prop] = props[prop]
                 self._unescape(filtered_props)
         return filtered_props
+
+    def _get_extra_property_image_topology(self,
+                                           imageUUID,
+                                           image_scg_dict,
+                                           scg_storage_template_dict):
+        """
+        Get an extra image property , named "image_topology" ,
+        which is used UI to select an available Storage
+        Connectivity Groups or Storage templates.
+        """
+        if imageUUID is not None:
+            image_topology = []
+            scg_list = image_scg_dict[imageUUID]
+            for scg in scg_list:
+                scg_topology = {}
+                scg_topology['scg_id'] = scg.id
+                scg_topology['display_name'] = scg.display_name
+
+                scg_storage_templates = scg_storage_template_dict[scg.id]
+                available_storage_templates = []
+                for storage_template in scg_storage_templates:
+                    storage_template_dict = {}
+                    storage_template_dict['id'] = storage_template.id
+                    storage_template_dict['name'] = storage_template.name
+                    available_storage_templates.append(storage_template_dict)
+                if available_storage_templates:
+                    scg_topology['storage_template_list'] = \
+                        available_storage_templates
+                image_topology.append(scg_topology)
+
+            json_image_topology = jsonutils.dumps(image_topology)
+            return json_image_topology
+        else:
+            return []
+
+    def _insert_extra_property_image_topology(self,
+                                              image,
+                                              image_scg_dict,
+                                              scg_storage_template_dict):
+        """
+        Insert or Update the extra property "image_topology" for
+        the image object and return the image object.
+
+        :param: image The image object that need to be updated
+        :param: image_scg_dict: A dict to store image UUID and
+                 the corresponding scg list
+        :param: scg_storage_template_dict: A dict to store scg UUID and
+                 the corresponding storage template list
+        :return The image object with the property "image_topology" updated
+        """
+        if image is not None and \
+            image_scg_dict is not None and \
+                scg_storage_template_dict:
+
+            image_topology_prop = \
+                self._get_extra_property_image_topology(
+                    image.id,
+                    image_scg_dict,
+                    scg_storage_template_dict)
+            image_properties = self._get_image_properties(image.to_dict())
+            image_properties[u'image_topology'] = unicode(image_topology_prop)
+            image.properties = image_properties
+            image._info['properties'] = image_properties
+            return image
+        else:
+            return image
+
+    def _filter_out_image_properties(self, image, props):
+        """
+        Delete the properties in the props list for the image object and return
+        the image object without these properties.
+
+        :param: image The image object that need to be filtered out
+        :param: props The properties need to delete
+        :return The image object without these specific properties in the props
+        """
+        if image is not None and props is not None:
+            image_properties = self._get_image_properties(image.to_dict())
+            for prop in props:
+                if prop in image_properties.keys():
+                    del(image_properties[prop])
+            image.properties = image_properties
+            image._info['properties'] = image_properties
+            return image
+        else:
+            return image
+
+    def _get_dicts_for_extra_image_property(self):
+        """
+        Get two dict to format the extra property "image_topology" , one dict
+        stores the image UUID and the corresponding scg list , the other stores
+        the scg UUID and the corresponding storage templates list.
+        """
+        available_scg_list = utils.get_utils().get_our_scg_list()
+        available_storage_template = \
+            utils.get_utils().get_all_storage_templates()
+        image_scgs_dict = \
+            utils.get_utils().get_image_scgs_dict(available_scg_list)
+        scg_storage_templates_dict = \
+            utils.get_utils().\
+            get_scg_accessible_storage_templates_extended(
+                available_scg_list, available_storage_template)
+        return image_scgs_dict, scg_storage_templates_dict
 
 
 class ImageSyncController():
