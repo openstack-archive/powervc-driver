@@ -79,7 +79,7 @@ class NotificationEndpoint(object):
         handlers = self._get_handlers(event_type)
         try:
             if handlers:
-                if self._log and self._log.isEnabledFor('INFO'):
+                if self._log:
                     self._log.info("'%s' level '%s' type message is received. "
                                    "Routing to handlers..."
                                    % (self.MSG_LEVEL[level], event_type)
@@ -92,7 +92,7 @@ class NotificationEndpoint(object):
                             payload=payload,
                             )
                     end_time = time.time()
-                    if self._log and self._log.isEnabledFor('DEBUG'):
+                    if self._log:
                         self._log.debug("handler '%s' uses '%f' time(s)"
                                         % (handler, end_time - start_time)
                                         )
