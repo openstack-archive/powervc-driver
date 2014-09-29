@@ -442,13 +442,49 @@ class PowerVCDriver(driver.ComputeDriver):
         """List the volumes attached to the specified instance."""
         return self._service.list_os_attachments(server_id)
 
-    def attach_interface(self, instance, image_meta, network_info):
-        """Attach an interface to the instance."""
-        raise NotImplementedError()
+    def attach_interface(self, instance, image_meta, vif):
+        """Attach an interface to the instance.
+        """
+        context = nova.context.get_admin_context()
+        try:
+            server_id = instance.get('uuid')
+            LOG.debug(_("Local Server uuid: %s") % server_id)
+            network_id = vif['network']['id']
+            LOG.debug(_("Local nic uuid: %s") % network_id)
+            ipAddress = vif['network']['subnets'][0]['ips'][0]['address']
+            LOG.debug(_("Set ipAddress: %s") % ipAddress)
+            port_id = vif['id']
+            LOG.debug(_("Local port uuid: %s") % port_id)
+        except Exception as e:
+            with excutils.save_and_reraise_exception():
+                LOG.error(_("attach interface failed with wrong paras: %s"),
+                          e, instance=instance)
+        # the 'net-id' will be changed to the 'uuid' in the boot method
+        pvc_network_id = self._service.get_pvc_network_uuid(context,
+                                                            network_id)
+        LOG.debug(_("PowerVC nic uuid: %s") % pvc_network_id)
+        # call service to attach interface
+        self._service.attach_interface(context,
+                                       instance,
+                                       pvc_network_id,
+                                       ipAddress,
+                                       port_id)
 
-    def detach_interface(self, instance, network_info):
-        """Detach an interface from the instance."""
-        raise NotImplementedError()
+    def detach_interface(self, instance, vif):
+        """Detach an interface from the instance.
+        """
+        context = nova.context.get_admin_context()
+        try:
+            port_id = vif['id']
+            LOG.debug(_("Local port uuid: %s") % port_id)
+        except Exception as e:
+            with excutils.save_and_reraise_exception():
+                LOG.error(_("attach interface failed with wrong paras: %s"),
+                          e, instance=instance)
+        # call service to detach interface
+        self._service.detach_interface(context,
+                                       instance,
+                                       port_id)
 
     def migrate_disk_and_power_off(self, context, instance, dest,
                                    instance_type, network_info,

@@ -362,6 +362,27 @@ class PVCServerManager(servers.ServerManager):
                 "migrate": "none"}
         return self._update(url, body)
 
+    def interface_attach(self, server, port_id, net_id, fixed_ip):
+        """
+        Attach a network_interface to an instance.
+
+        :param server: The :class:`Server` (or its ID) to attach to.
+        :param port_id: The port to attach.
+        """
+
+        body = {'interfaceAttachment': {}}
+        if port_id:
+            body['interfaceAttachment']['port_id'] = port_id
+        if net_id:
+            body['interfaceAttachment']['net_id'] = net_id
+        if fixed_ip:
+            body['interfaceAttachment']['fixed_ips'] = [
+                {'ip_address': fixed_ip}]
+
+        return self._create('/servers/%s/os-interface' %
+                            client_base.getid(server),
+                            body, 'interfaceAttachment', return_raw=True)
+
 
 class StorageConnectivityGroup(client_base.Resource):
     """

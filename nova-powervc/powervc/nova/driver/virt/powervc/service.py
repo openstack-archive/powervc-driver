@@ -1316,3 +1316,43 @@ class PowerVCService(object):
                 if pvc_volume_id is not None and local_volume_id != '':
                     cache_volume[pvc_volume_id] = local_volume_id
         return cache_volume
+
+    def attach_interface(self, context, instance, network_id, ipAddress,
+                         local_port_id):
+        """attach a new port to a specified vm
+        :param context: context for this action
+        :param instance: the vm instance that new interface attach to
+        :param network_id: the powervc network uuid
+        :param ipAddress: the ipv4 address that set to the vm
+        :param local_port_id: the local port uuid
+        """
+        # get client server instance from a db instance
+        server_with_pvc_id = self._get_server(instance)
+        # get the powervc client server instance from novaclient
+        server_client_obj = self._manager.get(server_with_pvc_id)
+        # get the raw_response data from patched novaclient interface attach
+        # function. For detail, see the extensions/nova.py#interface_attach()
+        raw_response = server_client_obj.interface_attach('', network_id,
+                                                          ipAddress)
+        # get powervc generated port uuid
+        pvc_port_id = raw_response.get('port_id')
+        LOG.debug(_("Get powervc generated port uuid: %s") % pvc_port_id)
+        # Call Neutron RPC to update the pvc id to port obj immediately.
+        self.set_pvc_id_to_port(context, local_port_id, pvc_port_id)
+
+    def detach_interface(self, context, instance, local_uuid):
+        pvc_port_uuid = self._api.get_pvc_port_uuid(context, local_uuid)
+        print "pvc_port_uuid to be detach:" + pvc_port_uuid
+        server_with_pvc_id = self._get_server(instance)
+        server_client_obj = self._manager.get(server_with_pvc_id)
+        response = server_client_obj.interface_detach(pvc_port_uuid)
+
+        print response
+
+    def set_pvc_id_to_port(self, ctx, local_port_id, pvc_port_id):
+        """
+        After attach an interface to a server, update the neutorn ports
+        to reflect latest ports information to neutron db.
+        """
+        pvc_id = self._api.set_pvc_id_to_port(ctx, local_port_id, pvc_port_id)
+        return pvc_id
