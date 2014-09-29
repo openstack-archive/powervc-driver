@@ -3,13 +3,12 @@
 	<name>common-powervc</name>
 	<comment></comment>
 	<projects>
-		<project>cinder-client</project>
-		<project>glance-client</project>
-		<project>keystone-client</project>
-		<project>neutron-client</project>
 		<project>nova</project>
-		<project>nova-client</project>
-		<project>oslo</project>
+		<project>oslo.config</project>
+		<project>oslo.messaging</project>
+		<project>python-cinderclient</project>
+		<project>python-glanceclient</project>
+		<project>python-novaclient</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
