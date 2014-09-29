@@ -8,6 +8,8 @@ from powervc.common.gettextutils import _
 from powervc.neutron.common import utils
 from powervc.neutron.db import powervc_db_v2
 
+import time
+
 LOG = logging.getLogger(__name__)
 
 
@@ -105,3 +107,21 @@ class PVCRpcCallbacks(object):
                                                        pvc_ins_uuid)
         LOG.info(_("- local_ids: %s"), local_ids)
         return local_ids
+
+    def set_pvc_id_to_port(self, context, local_port_id, pvc_port_id):
+        LOG.info(_("Neutron Agent RPC: start set pvc id to port:"))
+        # Sometimes for db session data delay, repeat 3 times to get the
+        # latest port info from local neutron db.
+        local_port = None
+        fetchTimes = 0
+        while True:
+            local_port = self.db.get_port(local_id=local_port_id)
+            # Delay 3 times, each 10 sec to fetch the local port db obj
+            if local_port or fetchTimes >= 2:
+                break
+            fetchTimes += 1
+            LOG.info(_("Cannot get port from local temporarily, wait 10sec.."))
+            time.sleep(10)
+
+        self.db.set_port_pvc_id(local_port, pvc_port_id)
+        LOG.info(_("End of set powervc uuid to port."))

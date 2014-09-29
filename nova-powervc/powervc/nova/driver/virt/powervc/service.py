@@ -1316,3 +1316,65 @@ class PowerVCService(object):
                 if pvc_volume_id is not None and local_volume_id != '':
                     cache_volume[pvc_volume_id] = local_volume_id
         return cache_volume
+
+    def attach_interface(self, context, instance, local_port_id,
+                         local_network_id, ipAddress):
+        """attach a new port to a specified vm
+        :param context: context for this action
+        :param instance: the vm instance that new interface attach to
+        :param local_port_id: the local port uuid
+        :param local_network_id: the powervc network uuid
+        :param ipAddress: the ipv4 address that set to the vm
+        """
+        pvc_port_id = self.get_pvc_port_uuid(context, local_port_id)
+        # get client server instance from a db instance
+        server_with_pvc_id = self._get_server(instance)
+        # get the powervc client server instance from novaclient
+        server_client_obj = self._manager.get(server_with_pvc_id)
+        # PowerVC restAPI will thrown BadRequest exception if set port_id
+        # and net-id/ipaddress in the same time.
+        # So if there is powervc port id matches to local port id existed, set
+        # the net_id and ipaddress to ''.
+        # If there is no port in powervc matches to local port existed, get
+        # and call restAPI with net-id and ipAddress.
+        if pvc_port_id:
+            pvc_network_id = ''
+            ipAddress = ''
+        else:
+            # the 'net-id' will be changed to the 'uuid' in the boot method
+            pvc_network_id = self.get_pvc_network_uuid(context,
+                                                       local_network_id)
+            LOG.debug(_("PowerVC nic uuid: %s") % pvc_network_id)
+        # get the raw_response data from patched novaclient interface attach
+        # function. For detail, see the extensions/nova.py#interface_attach()
+        server_client_obj.interface_attach(pvc_port_id, pvc_network_id,
+                                           ipAddress)
+        # Call Neutron RPC to update the pvc id to port obj immediately.
+        # self.set_pvc_id_to_port(context, local_port_id, pvc_port_id)
+
+        # TODO Loop to get the pvc_id from local db. Return this method until
+        # pvc_id got verified in local db, Default timeout is 150s
+
+    def detach_interface(self, context, instance, local_port_id):
+        """detach a port from a specified vm
+        :param context: context for this action
+        :param instance: the vm instance that new interface attach to
+        :param local_port_id: the local port uuid
+        """
+        pvc_port_uuid = self._api.get_pvc_port_uuid(context, local_port_id)
+        LOG.debug(_("pvc_port_uuid to be detach: %s"), pvc_port_uuid)
+        # get client server instance from a db instance
+        server_with_pvc_id = self._get_server(instance)
+        # get the powervc client server instance from novaclient
+        server_client_obj = self._manager.get(server_with_pvc_id)
+        response = server_client_obj.interface_detach(pvc_port_uuid)
+        LOG.debug(_("detach response: %s"), response)
+        return response
+
+    def set_pvc_id_to_port(self, ctx, local_port_id, pvc_port_id):
+        """
+        After attach an interface to a server, update the neutorn ports
+        to reflect latest ports information to neutron db.
+        """
+        pvc_id = self._api.set_pvc_id_to_port(ctx, local_port_id, pvc_port_id)
+        return pvc_id
