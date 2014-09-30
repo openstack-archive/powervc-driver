@@ -69,3 +69,13 @@ class NetworkAPI(object):
         method_name = "set_device_id_on_port_by_pvc_instance_uuid"
         result = self.rpcclient.call(ctxt, method_name, **kwargs)
         return result
+
+    def set_pvc_id_to_port(self, ctxt, local_port_id, pvc_port_id):
+        """Set the pvc_port_id to local db port by local_port_id
+        """
+        kwargs = {}
+        kwargs['local_port_id'] = local_port_id
+        kwargs['pvc_port_id'] = pvc_port_id
+        method_name = "set_pvc_id_to_port"
+        result = self.rpcclient.call(ctxt, method_name, **kwargs)
+        return result
