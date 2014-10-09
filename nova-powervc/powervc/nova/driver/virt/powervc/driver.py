@@ -1310,6 +1310,8 @@ class PowerVCDriver(driver.ComputeDriver):
 
         vcpus = int(float(info["vcpus"]) - float(info["proc_units_reserved"]))
         memory_mb = int(info["memory_mb"]) - int(info["memory_mb_reserved"])
+        # The value of the property 'free_ram_mb' is invalid,
+        # set is as '21474835'
 
         data = {'vcpus': vcpus,
                 'vcpus_used': info["vcpus_used"],
@@ -1317,7 +1319,7 @@ class PowerVCDriver(driver.ComputeDriver):
                 'host_memory_free': info["free_ram_mb"],
                 'disk_total': local_gb,
                 'disk_used': info["local_gb_used"],
-                'disk_available': info["free_disk_gb"],
+                'disk_available': 21474835,
                 'disk_available_least': info["disk_available_least"],
                 'hypervisor_hostname': info["hypervisor_hostname"],
                 'hypervisor_type': info["hypervisor_type"],
