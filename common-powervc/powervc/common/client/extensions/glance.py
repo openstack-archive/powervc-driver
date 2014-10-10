@@ -2,8 +2,6 @@
 
 import powervc.common.client.extensions.base as base
 
-import warlock
-
 from glanceclient.common import http
 from glanceclient.common import utils
 from glanceclient.v2 import image_members
@@ -27,19 +25,10 @@ class Extended_V2_Client(object):
         self.http_client = http.HTTPClient(utils.strip_version(endpoint),
                                            **kwargs)
         self.schemas = schemas.Controller(self.http_client)
-        image_model = self._get_image_model()
-        self.images = images.Controller(self.http_client, image_model)
-        self.image_tags = image_tags.Controller(self.http_client, image_model)
+        self.images = images.Controller(self.http_client, self.schemas)
+        self.image_tags = image_tags.Controller(self.http_client, self.schemas)
         self.image_members = image_members.Controller(self.http_client,
-                                                      self._get_member_model())
-
-    def _get_image_model(self):
-        schema = self.schemas.get('image')
-        return warlock.model_factory(schema.raw(), schemas.SchemaBasedModel)
-
-    def _get_member_model(self):
-        schema = self.schemas.get('member')
-        return warlock.model_factory(schema.raw(), schemas.SchemaBasedModel)
+                                                      self.schemas)
 
 
 class Client(base.ClientExtension):
