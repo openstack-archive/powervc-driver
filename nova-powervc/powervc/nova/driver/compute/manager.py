@@ -31,6 +31,7 @@ from nova.openstack.common import timeutils
 from nova.openstack.common import loopingcall
 from nova.openstack.common.loopingcall import LoopingCallDone
 from nova.openstack.common import jsonutils
+from nova import objects
 from nova.objects import instance as instance_obj
 from nova.objects import base as obj_base
 from powervc.nova.driver.compute import computes
@@ -628,6 +629,13 @@ class PowerVCCloudManager(manager.Manager):
                         local_instance.get('name'))
 
         # delete network resource
+        # transfer db object to nova instance obj to meet latest community
+        # change
+        if not isinstance(local_instance, obj_base.NovaObject):
+            local_instance = \
+                objects.Instance._from_db_object(ctx,
+                                                 objects.Instance(),
+                                                 local_instance)
         self.network_api.deallocate_for_instance(ctx, local_instance)
 
         # Send notification about instance deletion due to sync operation
