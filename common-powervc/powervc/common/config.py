@@ -17,8 +17,11 @@ if 'powervc' in sys.argv[0]:
     # those OpenStack AMQP configurations in [DEFAULT] section of nova.conf,
     # cinder.conf.
     argv = sys.argv[1:]
-    argv1 = None
-    argv2 = None
+    if 'neutron' in sys.argv[0]:
+        argv1 = ['--config-file', '/etc/powervc/amqp-openstack-neutron.conf']
+    else:
+        argv1 = ['--config-file', '/etc/powervc/amqp-openstack.conf']
+    argv2 = ['--config-file', '/etc/powervc/amqp-powervc.conf']
     argv1_index = -1
     argv2_index = -1
     for i in range(len(argv)):
@@ -30,15 +33,17 @@ if 'powervc' in sys.argv[0]:
             elif os.path.basename(argv[i+1]) == 'amqp-powervc.conf':
                 argv2 = argv[i:i+2]
                 argv2_index = i+1
-    if argv1 is None or argv2 is None:
-        sys.exit("Invalid configuration: amqp-powervc.conf and"
-                 + " amqp-openstack.conf(or openstack-neutron.conf)"
-                 + " are required.")
-    else:
-        if argv1_index > argv2_index:
-            argv1_index, argv2_index = argv2_index, argv1_index
+    if argv1_index > argv2_index:
+        argv1_index, argv2_index = argv2_index, argv1_index
+    if argv1_index > -1 and argv2_index > -1:
         sys.argv = (sys.argv[:argv1_index]
                     + sys.argv[argv1_index+2:argv2_index]
+                    + sys.argv[argv2_index+2:])
+    elif argv1_index > -1 and argv2_index == -1:
+        sys.argv = (sys.argv[:argv1_index]
+                    + sys.argv[argv1_index+2:])
+    elif argv2_index > -1 and argv1_index == -1:
+        sys.argv = (sys.argv[:argv2_index]
                     + sys.argv[argv2_index+2:])
 
     AMQP_OPENSTACK_CONF = cfg.ConfigOpts()
