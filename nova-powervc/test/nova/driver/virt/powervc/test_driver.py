@@ -404,6 +404,108 @@ class PowerVCDriverTestCase(test.NoDBTestCase):
             task_state=task_states.IMAGE_UPLOADING,
             expected_state=task_states.IMAGE_PENDING_UPLOAD)
 
+    def test_attach_interface_with_port_id_existed(self):
+        instance = MagicMock()
+
+        vif = self._get_vif_instance()
+        pvc_driver = self._driver
+        pvc_driver._service._api = MagicMock()
+        pvc_driver._service._manager.get = \
+            MagicMock(return_value=instance)
+        pvc_driver._service._api.get_pvc_port_uuid = \
+            MagicMock(return_value='powervc-port-id-77777777')
+        pvc_driver._service._api.get_pvc_network_uuid = \
+            MagicMock(return_value='powervc-network-id-88888888')
+
+        pvc_driver.attach_interface(instance, {}, vif)
+        instance.interface_attach.\
+            assert_called_once_with('powervc-port-id-77777777', '', '')
+
+    def test_attach_interface_with_ipAddress_network_id(self):
+        instance = MagicMock()
+
+        vif = self._get_vif_instance()
+        pvc_driver = self._driver
+        pvc_driver._service._api = MagicMock()
+        pvc_driver._service._manager.get = \
+            MagicMock(return_value=instance)
+        pvc_driver._service._api.get_pvc_port_uuid = \
+            MagicMock(return_value='')
+        pvc_driver._service._api.get_pvc_network_uuid = \
+            MagicMock(return_value='powervc-network-id-88888888')
+
+        pvc_driver.attach_interface(instance, {}, vif)
+        instance.interface_attach.\
+            assert_called_once_with('', 'powervc-network-id-88888888',
+                                    '192.168.1.4')
+
+    def test_attach_interface_with_bad_request_exception_raised(self):
+        instance = MagicMock()
+        attach_instance = pvcIns
+        attach_instance.interface_attach = \
+            MagicMock(side_effect=exceptions.BadRequest("Attach failed"))
+
+        vif = self._get_vif_instance()
+        pvc_driver = self._driver
+        pvc_driver._service._api = MagicMock()
+        pvc_driver._service._manager.get = \
+            MagicMock(return_value=attach_instance)
+        pvc_driver._service._api.get_pvc_port_uuid = \
+            MagicMock(return_value='')
+        pvc_driver._service._api.get_pvc_network_uuid = \
+            MagicMock(return_value='powervc-network-id-88888888')
+
+        self.assertRaises(exceptions.BadRequest,
+                          pvc_driver.attach_interface,
+                          instance,
+                          {},
+                          vif)
+
+    def test_detach_interface(self):
+        instance = MagicMock()
+
+        vif = self._get_vif_instance()
+        pvc_driver = self._driver
+        pvc_driver._service._api = MagicMock()
+        pvc_driver._service._manager.get = \
+            MagicMock(return_value=instance)
+        pvc_driver._service._api.get_pvc_port_uuid = \
+            MagicMock(return_value='powervc-port-id-77777777')
+        pvc_driver._service._api.get_pvc_network_uuid = \
+            MagicMock(return_value='powervc-network-id-88888888')
+
+        pvc_driver.detach_interface(instance, vif)
+        instance.interface_detach.\
+            assert_called_once_with('powervc-port-id-77777777')
+
+    def test_detach_interface_with_bad_request_exception_raised(self):
+        instance = MagicMock()
+        detach_instance = pvcIns
+        detach_instance.interface_detach = \
+            MagicMock(side_effect=exceptions.BadRequest("Attach failed"))
+
+        vif = self._get_vif_instance()
+        pvc_driver = self._driver
+        pvc_driver._service._api = MagicMock()
+        pvc_driver._service._manager.get = \
+            MagicMock(return_value=detach_instance)
+        pvc_driver._service._api.get_pvc_port_uuid = \
+            MagicMock(return_value='')
+        self.assertRaises(exceptions.BadRequest,
+                          pvc_driver.detach_interface,
+                          instance,
+                          vif)
+
+    def _get_vif_instance(self):
+        vif = {}
+        vif['id'] = "local-port-id-12345678"
+        network = {}
+        network['id'] = "local-network-id-87654321"
+        subnets = [{'ips': [{'address': '192.168.1.4'}]}]
+        network['subnets'] = subnets
+        vif['network'] = network
+        return vif
+
     def tearDown(self):
         super(PowerVCDriverTestCase, self).tearDown()
         self.unpatch()
