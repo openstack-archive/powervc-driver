@@ -663,7 +663,7 @@ class PowerVCNeutronAgent(object):
     def _delete_local_port(self, local_port, db_port):
         # complex logic here on how to handle it
         # some possible cases for this local port:
-        # 1) device_id = PowerVC-Lock occurs when lock IP address done.
+        # 1) device_id = Lock occurs when lock IP address done.
         # Delete the local port
         # 2) device_owner = network:router_interface  (see issue 173350).
         # re-create the PVC port
