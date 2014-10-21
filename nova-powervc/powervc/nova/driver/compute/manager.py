@@ -579,11 +579,10 @@ class PowerVCCloudManager(manager.Manager):
                     continue
             leftover_bdms.append(local_attachment)
 
-        if leftover_bdms:
+        for deleted_bdm in leftover_bdms:
             LOG.info(_("Removing Block Device Mapping for: "
-                       "%s") % leftover_bdms)
-            self.conductor_api.block_device_mapping_destroy(ctx,
-                                                            leftover_bdms)
+                       "%s") % deleted_bdm)
+            db_api.block_device_mapping_destroy(ctx, deleted_bdm['id'])
             LOG.info(_("Removed Block Device Mapping"))
 
     def _is_volume_type(self, block_device_mapping):
