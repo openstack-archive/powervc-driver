@@ -4,7 +4,7 @@ from webob import exc
 from nova.api.openstack import extensions
 from nova.api.openstack import wsgi
 from nova import compute
-from nova.openstack.common.gettextutils import _
+from nova.i18n import _
 from powervc.common import constants as common_constants
 from powervc.common import config
 
