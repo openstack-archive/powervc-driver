@@ -17,7 +17,7 @@ from powervc.common import utils
 from powervc import utils as powervc_utils
 from powervc.common.gettextutils import _
 from nova.exception import Invalid
-from nova.openstack.common import excutils
+from oslo.utils import excutils
 from powervc.nova.driver.compute import task_states
 from nova.compute import flavors
 from novaclient.v1_1 import servers

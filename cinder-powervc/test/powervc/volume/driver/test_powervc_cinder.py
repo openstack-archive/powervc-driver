@@ -1,4 +1,4 @@
-# Copyright 2013 IBM Corp.
+# Copyright 2013, 2014 IBM Corp.
 # mock module
 import mock
 import sys
@@ -7,8 +7,8 @@ import unittest
 
 sys.modules['powervc.common.client'] = mock.MagicMock()
 # import _
-from cinder.openstack.common import gettextutils
-gettextutils.install('cinder')
+from oslo import i18n
+i18n.install('cinder')
 from powervc.common import config
 from cinder import exception
 from cinder import db
