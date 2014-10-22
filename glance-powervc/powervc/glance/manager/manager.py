@@ -1,4 +1,4 @@
-# Copyright 2013 IBM Corp.
+# Copyright 2013, 2014 IBM Corp.
 
 """
 PowerVC Driver ImageManager service
@@ -16,8 +16,8 @@ from powervc.common import config
 
 from nova.openstack.common import service
 from nova.openstack.common import log as logging
-from nova.openstack.common import timeutils
-from nova.openstack.common import jsonutils
+from oslo.utils import timeutils
+from oslo.serialization import jsonutils
 from glanceclient.v1 import images as v1images
 from glanceclient.exc import CommunicationError
 from glanceclient.exc import HTTPNotFound

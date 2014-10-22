@@ -1,4 +1,4 @@
-# Copyright 2013 IBM Corp.
+# Copyright 2013, 2014 IBM Corp.
 
 import httplib
 from novaclient import exceptions
@@ -17,7 +17,7 @@ from powervc.common import utils
 from powervc import utils as powervc_utils
 from powervc.common.gettextutils import _
 from nova.exception import Invalid
-from nova.openstack.common import excutils
+from oslo.utils import excutils
 from powervc.nova.driver.compute import task_states
 from nova.compute import flavors
 from novaclient.v1_1 import servers

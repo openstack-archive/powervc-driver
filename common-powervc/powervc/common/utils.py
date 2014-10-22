@@ -1,4 +1,4 @@
-# Copyright 2013 IBM Corp.
+# Copyright 2013, 2014 IBM Corp.
 import logging
 import exception
 import os
@@ -7,7 +7,7 @@ import threading
 import time
 
 from eventlet.semaphore import Semaphore
-from glanceclient.openstack.common import importutils
+from oslo.utils import importutils
 from powervc.common import config
 from powervc.common import constants
 from powervc.common.exception import StorageConnectivityGroupNotFound

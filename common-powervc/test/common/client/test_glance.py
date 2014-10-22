@@ -1,12 +1,12 @@
-# Copyright 2013 IBM Corp.
+# Copyright 2013, 2014 IBM Corp.
 import unittest
 import mox
 from mock import MagicMock
 import glanceclient.v1.images as imagesV1
 import glanceclient.v1.image_members as membersV1
 
-from glanceclient.openstack.common import gettextutils
-gettextutils.install('common-glance-client-ut')
+from oslo import i18n
+i18n.install('common-glance-client-ut')
 
 import powervc.common.utils as common_utils
 
