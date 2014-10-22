@@ -6,9 +6,9 @@ from nova import exception
 from nova.compute import task_states
 from nova.image import glance
 from nova.virt import driver
-from nova.openstack.common import jsonutils
+from oslo.serialization import jsonutils
 from nova.openstack.common import log as logging
-from nova.openstack.common import excutils
+from oslo.utils import excutils
 from powervc.nova.driver.virt.powervc import service
 from powervc.nova.driver.compute import constants
 from powervc.nova.common import exception as pvc_exception

@@ -2,8 +2,7 @@
 import unittest
 import mox
 
-from nova.openstack.common import gettextutils
-gettextutils.install('nova')
+from nova.i18n import _
 
 from nova.compute import flavors
 
