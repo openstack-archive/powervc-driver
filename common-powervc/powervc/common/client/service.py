@@ -5,7 +5,7 @@ import re
 import urlparse
 
 import powervc.common.client.delegate as delegate
-from glanceclient.openstack.common import importutils
+from oslo.utils import importutils
 from powervc.common.constants import SERVICE_TYPES as SERVICE_TYPES
 from powervc.common import netutils
 from powervc.common.client.extensions.glance import Extended_V2_Client

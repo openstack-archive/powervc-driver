@@ -7,7 +7,7 @@ import os
 from nova import exception
 os.environ['EVENTLET_NO_GREENDNS'] = 'yes'
 from nova import test
-from nova.openstack.common import jsonutils
+from oslo.serialization import jsonutils
 from nova.compute import task_states
 from nova.image import glance
 from nova import db

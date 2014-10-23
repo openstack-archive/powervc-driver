@@ -1,4 +1,4 @@
-# Copyright 2013 IBM Corp.
+# Copyright 2013, 2014 IBM Corp.
 
 """
 Doing PowerVC initialize work, including image, instance sync.
@@ -25,12 +25,12 @@ from nova.image import glance
 from nova.compute import flavors
 from nova.compute import task_states
 from nova.compute import vm_states
-from nova.openstack.common import importutils
+from oslo.utils import importutils
 from nova.openstack.common import log as logging
-from nova.openstack.common import timeutils
+from oslo.utils import timeutils
 from nova.openstack.common import loopingcall
 from nova.openstack.common.loopingcall import LoopingCallDone
-from nova.openstack.common import jsonutils
+from oslo.serialization import jsonutils
 from nova import objects
 from nova.objects import instance as instance_obj
 from nova.objects import base as obj_base

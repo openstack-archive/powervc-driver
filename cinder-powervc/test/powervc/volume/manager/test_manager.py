@@ -1,6 +1,6 @@
-# Copyright 2013 IBM Corp.
-from cinder.openstack.common import gettextutils
-gettextutils.install('cinder')
+# Copyright 2013, 2014 IBM Corp.
+from oslo import i18n
+i18n.install('cinder')
 import unittest
 import mox
 from powervc.volume.manager.manager import PowerVCCinderManager

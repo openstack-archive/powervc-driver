@@ -1,9 +1,8 @@
-# Copyright 2013 IBM Corp.
+# Copyright 2013, 2014 IBM Corp.
 import unittest
 import mox
 
-from nova.openstack.common import gettextutils
-gettextutils.install('nova')
+from nova.i18n import _
 
 from nova.compute import flavors
 
