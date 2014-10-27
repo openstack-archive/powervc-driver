@@ -53,15 +53,16 @@ class Controller(wsgi.Controller):
                                            "'enable' or 'disable'"))
 
         migrate_candidate = ["none", "active-only", "all"]
-        migrate = body.get("migrate", "none")
-        if migrate.lower() not in migrate_candidate:
+        migrate = body.get("migrate")
+        if migrate and migrate.lower() not in migrate_candidate:
             raise exc.HTTPBadRequest(_("Malformed request body, migrate wrong "
                                        "in request body, should be 'none',"
                                        "active-only, all or empty"))
+        target_host = body.get("target_host")
         # Set maintenance mode from powervc client
         maintenance_update_status = self.pvcclient.hypervisors.\
             update_host_maintenance_mode(host_name, maintenance_status,
-                                         migrate)
+                                         migrate, target_host)
         return maintenance_update_status
 
 
