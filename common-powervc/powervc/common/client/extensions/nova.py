@@ -13,6 +13,7 @@ from novaclient.v1_1.volume_types import VolumeType
 from powervc.common.client.extensions import base
 from powervc.common.gettextutils import _
 from powervc.common import utils
+from webob import exc
 import logging
 
 LOG = logging.getLogger(__name__)
@@ -48,11 +49,13 @@ class PVCHypervisorManager(hypervisors.HypervisorManager):
         hypervisors = self.search(hostname)
 
         if not hypervisors[0] or not self.get(hypervisors[0]):
-            raise exceptions.NotFound(_("No hypervisor matching '%s' could be"
-                                        " found.")
-                                      % hostname)
+            raise exc.HTTPNotFound(_("No hypervisor matching '%s' could be"
+                                     " found.") % hostname)
 
-        hypervisor = self.get(hypervisors[0])
+        try:
+            hypervisor = self.get(hypervisors[0])
+        except Exception as ex:
+            raise exc.HTTPNotFound(explanation=six.text_type(ex))
 
         # Either "ok" (maintenance off), "entering", "on" or "error"
         # compatible with previous powervc version, if no such property
@@ -68,7 +71,8 @@ class PVCHypervisorManager(hypervisors.HypervisorManager):
         return {"maintenance_status": maintenance_status,
                 "maintenance_migration_action": maintenance_migration_action}
 
-    def update_host_maintenance_mode(self, hostname, enabled, migrate):
+    def update_host_maintenance_mode(self, hostname, enabled, migrate=None,
+                                     target_host=None):
         """Update host maintenance mode status.
         :hostname: The hostname of the hypervisor
         :enabled: should be "enable" or "disable"
@@ -79,11 +83,22 @@ class PVCHypervisorManager(hypervisors.HypervisorManager):
         """
         # Refer to PowerVC HLD host maintenance mode chapter
         url = "/ego/prs/hypervisor_maintenance/%s" % hostname
-        body = {"status": enabled,
-                "migrate": migrate}
+        if not migrate:
+            body = {"status": enabled}
+        else:
+            if target_host:
+                body = {"status": enabled,
+                        "migrate": migrate,
+                        "target_host": target_host}
+            else:
+                body = {"status": enabled,
+                        "migrate": migrate}
 
         # send set maintenance mode request by put http method
-        _resp, resp_body = self.api.client.put(url, body=body)
+        try:
+            _resp, resp_body = self.api.client.put(url, body=body)
+        except Exception as ex:
+            raise exc.HTTPBadRequest(explanation=six.text_type(ex))
 
         # check response content
         if "hypervisor_maintenance" not in resp_body:
