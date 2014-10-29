@@ -666,33 +666,7 @@ class PowerVCDriver(driver.ComputeDriver):
             a driver that manages only one node can safely ignore this
         :returns: Dictionary describing resources
         """
-        hypervisor = self.get_hypervisor_by_hostname(self.hostname)
-        if hypervisor is None:
-            return None
-        info = hypervisor._info
-
-        local_gb = info["local_gb"]
-        if int(local_gb) == 0:
-            local_gb = info["local_gb_used"]
-
-        vcpus = int(float(info["vcpus"]) - float(info["proc_units_reserved"]))
-        memory_mb = int(info["memory_mb"]) - int(info["memory_mb_reserved"])
-
-        dic = {'vcpus': vcpus,
-               'vcpus_used': info["vcpus_used"],
-               'memory_mb': memory_mb,
-               'memory_mb_used': info["memory_mb_used"],
-               'local_gb': local_gb,
-               'local_gb_used': info["local_gb_used"],
-               'disk_available_least': info["disk_available_least"],
-               'hypervisor_hostname': info["hypervisor_hostname"],
-               'hypervisor_type': info["hypervisor_type"],
-               'hypervisor_version': info["hypervisor_version"],
-               'cpu_info': info["cpu_info"],
-               'supported_instances': jsonutils.dumps(
-                   constants.POWERVC_SUPPORTED_INSTANCES)
-               }
-        return dic
+        return self._update_status()
 
     def _get_cpu_info(self):
         """Get cpuinfo information.
@@ -1302,6 +1276,8 @@ class PowerVCDriver(driver.ComputeDriver):
         """Retrieve status info from PowerVC."""
         LOG.debug(_("Updating host stats"))
         hypervisor = self.get_hypervisor_by_hostname(self.hostname)
+        if hypervisor is None:
+            return None
         info = hypervisor._info
 
         local_gb = info["local_gb"]
@@ -1317,16 +1293,22 @@ class PowerVCDriver(driver.ComputeDriver):
                 'vcpus_used': info["vcpus_used"],
                 'host_memory_total': memory_mb,
                 'host_memory_free': info["free_ram_mb"],
+                'memory_mb': memory_mb,
+                'memory_mb_used': info["memory_mb_used"],
                 'disk_total': local_gb,
                 'disk_used': info["local_gb_used"],
                 'disk_available': 21474835,
                 'disk_available_least': info["disk_available_least"],
+                'local_gb': local_gb,
+                'local_gb_used': info["local_gb_used"],
                 'hypervisor_hostname': info["hypervisor_hostname"],
                 'hypervisor_type': info["hypervisor_type"],
                 'hypervisor_version': info["hypervisor_version"],
-                'supported_instances': constants.POWERVC_SUPPORTED_INSTANCES,
-                'cpu_info': info["cpu_info"]}
+                'cpu_info': info["cpu_info"],
+                'supported_instances': jsonutils.dumps(
+                    constants.POWERVC_SUPPORTED_INSTANCES)}
         self._stats = data
+        return data
 
     def _get_pvc_image_uuid(self, image_meta):
         """
