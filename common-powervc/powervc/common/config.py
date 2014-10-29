@@ -129,7 +129,8 @@ FILE_OPTIONS = {
         cfg.StrOpt('staging_project_name',
                    default=constants.DEFAULT_STAGING_PROJECT_NAME),
         cfg.StrOpt('staging_user',
-                   default=constants.DEFAULT_STAGING_USER_NAME)]
+                   default=constants.DEFAULT_STAGING_USER_NAME),
+        cfg.IntOpt('max_host_disk_size', default=2907152)]
 }
 
 for section in FILE_OPTIONS:
