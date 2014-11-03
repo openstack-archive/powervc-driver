@@ -1,4 +1,4 @@
-# Copyright 2013 IBM Corp.
+# Copyright 2013, 2014 IBM Corp.
 
 """
 Doing PowerVC initialize work, including image, instance sync.
@@ -955,10 +955,10 @@ class PowerVCCloudManager(manager.Manager):
         ]
 
         LOG.debug("Starting to listen...... ")
-
+        pool_name = messaging.get_pool_name('nova')
         local_nova_listener = listener.\
             get_notification_listener(trans, targets, endpoints,
-                                      allow_requeue=False)
+                                      allow_requeue=False, pool=pool_name)
         messaging.start_notification_listener(local_nova_listener)
 
         LOG.debug("Exit _create_local_listeners method")
@@ -1015,9 +1015,10 @@ class PowerVCCloudManager(manager.Manager):
 
         LOG.debug("Starting to listen...... ")
 
+        pool_name = messaging.get_pool_name('nova')
         pvc_nova_listener = listener.\
             get_notification_listener(trans, targets, endpoints,
-                                      allow_requeue=False)
+                                      allow_requeue=False, pool=pool_name)
         messaging.start_notification_listener(pvc_nova_listener)
 
         LOG.debug("Exit _create_powervc_listeners method")

@@ -1,4 +1,4 @@
-# Copyright 2013 IBM Corp.
+# Copyright 2013, 2014 IBM Corp.
 
 # from cinderclient.v1 import client
 import cinder.db.sqlalchemy.models
@@ -218,9 +218,10 @@ class PowerVCCinderManager(service.Service):
 
         LOG.debug("Starting to listen...... ")
 
+        pool_name = messaging.get_pool_name('cinder')
         pvc_cinder_listener = listener.\
             get_notification_listener(trans, targets, endpoints,
-                                      allow_requeue=False)
+                                      allow_requeue=False, pool=pool_name)
         messaging.start_notification_listener(pvc_cinder_listener)
 
         LOG.debug("Exit _create_powervc_listeners method")

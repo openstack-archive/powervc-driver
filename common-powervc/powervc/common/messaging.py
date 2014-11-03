@@ -5,10 +5,14 @@ AMQP messages based on olso.messaging framework.
 """
 
 import fnmatch
+import logging
+import socket
 import threading
 import time
 
 from oslo.messaging.notify import dispatcher
+
+LOG = logging.getLogger(__name__)
 
 
 class NotificationEndpoint(object):
@@ -176,3 +180,13 @@ def start_notification_listener(notification_listener):
     """
     t = threading.Thread(target=_run)
     t.start()
+
+def get_pool_name(exchange):
+    """Get the pool name for the listener, it will be formated as
+    'powervdriver-exchange-hostname'
+
+    :param: exchange exchange name
+    """
+    pool_name = 'powervcdriver-%s-%s' % (exchange, socket.gethostname())
+    LOG.debug("listener pool name is %s" % pool_name)
+    return pool_name
