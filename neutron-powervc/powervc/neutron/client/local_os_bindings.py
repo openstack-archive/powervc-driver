@@ -85,9 +85,10 @@ class Client(neutron_client_bindings.Client):
 
         LOG.debug("Starting to listen...... ")
 
+        pool_name = messaging.get_pool_name(constants.QPID_EXCHANGE)
         local_neutron_listener = listener.\
             get_notification_listener(trans, targets, endpoints,
-                                      allow_requeue=False)
+                                      allow_requeue=False, pool=pool_name)
         messaging.start_notification_listener(local_neutron_listener)
 
         LOG.debug("Exit _create_amqp_listeners(local) method")

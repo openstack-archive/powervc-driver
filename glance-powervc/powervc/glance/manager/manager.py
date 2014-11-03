@@ -2404,9 +2404,10 @@ class PowerVCImageManager(service.Service):
 
         LOG.debug("Starting to listen...... ")
 
+        pool_name = messaging.get_pool_name(constants.IMAGE_EVENT_EXCHANGE)
         local_glance_listener = listener.\
             get_notification_listener(trans, targets, endpoints,
-                                      allow_requeue=False)
+                                      allow_requeue=False, pool=pool_name)
         messaging.start_notification_listener(local_glance_listener)
 
         LOG.debug("Exit _start_local_event_handler method")
@@ -2443,9 +2444,10 @@ class PowerVCImageManager(service.Service):
 
         LOG.debug("Starting to listen...... ")
 
+        pool_name = messaging.get_pool_name(constants.IMAGE_EVENT_EXCHANGE)
         pvc_glance_listener = listener.\
             get_notification_listener(trans, targets, endpoints,
-                                      allow_requeue=False)
+                                      allow_requeue=False, pool=pool_name)
         messaging.start_notification_listener(pvc_glance_listener)
 
         LOG.debug("Exit _start_pvc_event_handler method")
