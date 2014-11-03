@@ -77,6 +77,8 @@ class PowerVCCloudManager(manager.Manager):
             LOG.error(_("Unable to load the PowerVC driver: %s") % (e))
             sys.exit(1)
 
+        # Defer update local vm when powervc vm ids in spawning status
+        self.defer_update_local_vm_in_spawning_ids = []
         # The variable used to cache the volume data
         self.cache_volume = utills.VolumeCache(self.driver)
         self.compute_api = compute.API()
@@ -309,6 +311,12 @@ class PowerVCCloudManager(manager.Manager):
                                     local_instance)
         # Try to link network with instance if we haven't.
         self._fix_instance_nw_info(context, local_instance)
+        # send out event for instance update
+        compute.utils.notify_about_instance_usage(self.notifier, context,
+                                                  local_instance, "update",
+                                                  network_info={},
+                                                  system_metadata={},
+                                                  extra_usage_info={})
 
     def _translate_pvc_instance(self, ctx, pvc_instance, db_instance=None):
         """Map fields in a PowerVC instance to a local instance."""
@@ -1622,26 +1630,36 @@ class PowerVCCloudManager(manager.Manager):
                                          pvc_instance)
             return True
 
+        local_id = local_instance.get('uuid')
         if (pvc_task_state is None and
            (pvc_vm_state == vm_states.ACTIVE or
             pvc_vm_state == vm_states.ERROR) and
                 local_task_state == task_states.SPAWNING):
 
-            LOG.info(_('Update %(pvc_ins)s to %(local_ins)s, when'
-                       'pvc_task_state is %(pvc_task_state)s,'
-                       'pvc_vm_state is %(pvc_vm_state)s,'
-                       'local_task_state is %(local_task_state)s,'
-                       'local_vm_state is %(local_vm_state)s'
-                       % {'pvc_ins': pvc_instance,
-                          'local_ins': local_instance,
-                          'pvc_task_state': pvc_task_state,
-                          'pvc_vm_state': pvc_vm_state,
-                          'local_task_state': local_task_state,
-                          'local_vm_state': local_vm_state}))
+            # Defer update local vm when powervc vm ids in spawning status
+            if local_id in self.defer_update_local_vm_in_spawning_ids:
+                LOG.info(_('Update %(pvc_ins)s to %(local_ins)s, when'
+                           'pvc_task_state is %(pvc_task_state)s,'
+                           'pvc_vm_state is %(pvc_vm_state)s,'
+                           'local_task_state is %(local_task_state)s,'
+                           'local_vm_state is %(local_vm_state)s'
+                           % {'pvc_ins': pvc_instance,
+                              'local_ins': local_instance,
+                              'pvc_task_state': pvc_task_state,
+                              'pvc_vm_state': pvc_vm_state,
+                              'local_task_state': local_task_state,
+                              'local_vm_state': local_vm_state}))
 
-            self._sync_existing_instance(context,
-                                         local_instance,
-                                         pvc_instance)
+                self._sync_existing_instance(context,
+                                             local_instance,
+                                             pvc_instance)
+                self.defer_update_local_vm_in_spawning_ids.remove(local_id)
+            else:
+                self.defer_update_local_vm_in_spawning_ids.append(local_id)
+                LOG.info(_('VM: %(uuid)s is in spawning status, defer update.'
+                            'Just add uuid to list and will update next time.'
+                            % {'uuid': local_id}))
+
             return True
 
         LOG.debug(_('Skip update %(pvc_ins)s to %(local_ins)s, because'
