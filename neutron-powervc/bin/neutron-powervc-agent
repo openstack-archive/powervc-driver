@@ -17,7 +17,7 @@ if ('eventlet' in sys.modules and
 os.environ['EVENTLET_NO_GREENDNS'] = 'yes'
 
 import eventlet
-eventlet.patcher.monkey_patch(os=False, thread=False)
+eventlet.patcher.monkey_patch()
 
 # If ../powervc/__init__.py exists, add ../ to Python search path, so that
 # it will override what happens to be installed in /usr/(local/)lib/python.
