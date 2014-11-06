@@ -674,6 +674,8 @@ class PowerVCService(object):
         userdata = instance.user_data   # already base64 encoded by local OS
 
         if not isDefer:
+            LOG.debug(_('Enter to invoke powervc api to deploy instance of %s' 
+                        % name))
             createdServer = \
                 self._manager.create(name=name,
                                      image=imageUUID,
@@ -688,7 +690,11 @@ class PowerVCService(object):
                                      nics=nics,
                                      hypervisor=hypervisorID,
                                      availability_zone=availability_zone)
+            LOG.debug(_('Exit to invoke powervc api to deploy instance of %s' 
+                        % name))
         else:
+            LOG.debug(_('Enter to invoke powervc api to deploy instance of %s' 
+                        % name))
             createdServer = self._manager.create(name=name,
                                                  image=imageUUID,
                                                  flavor=flavorDict,
@@ -701,6 +707,8 @@ class PowerVCService(object):
                                                  # key_data = key_data,
                                                  config_drive=config_drive,
                                                  nics=nics)
+            LOG.debug(_('Exit to invoke powervc api to deploy instance of %s' 
+                        % name))
 
         LOG.debug(_('Created Server: %s' % createdServer))
         LOG.debug(_(
@@ -812,9 +820,14 @@ class PowerVCService(object):
             LOG.debug("Service: Can not find VM %s in the PowerVC."
                       % server_instance.id)
             return True
-
+        
+        LOG.debug(_("Enter to invoke powervc api to delete instance of %s") 
+                  % server)
         delete_response = self._manager.delete(server)
-
+        LOG.debug(_("Exit to invoke powervc api to delete instance of %s") 
+                  % server)
+        LOG.debug(_("Deleted instance of %s") % server_instance.id)
+        
         self._validate_response(delete_response)
 
         def _wait_for_destroy():
@@ -930,8 +943,11 @@ class PowerVCService(object):
         :para body: the body of rest request
 
         """
+        LOG.debug(_("Enter to invoke powervc api to resize instance of %s") 
+                  % server.id)
         response = self._manager._resize_pvc(server, props)
-
+        LOG.debug(_("Exit to invoke powervc api to resize instance of %s") 
+                  % server.id)
         return response
 
     def resize_instance(self, context, migration, instance,

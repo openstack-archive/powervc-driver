@@ -616,6 +616,9 @@ class PowerVCCloudManager(manager.Manager):
             LOG.debug(_('Instance does not exist locally'))
             return
 
+        LOG.debug(_('Enter to unregister instance of %s .')
+                  % local_instance.get('uuid'))
+
         instance_ref = local_instance
 
         # If the task state is not set to deleting, set it.
@@ -628,6 +631,8 @@ class PowerVCCloudManager(manager.Manager):
                 {'task_state': task_states.DELETING, 'progress': 0})
             notifications.send_update(ctx, old_ref, instance_ref,
                                       service='powervc')
+            LOG.debug(_("Sent a notification for the updated state of %s") 
+                      % instance_ref.get('uuid'))
 
         # Delete the instance from the local database
         try:
@@ -650,6 +655,10 @@ class PowerVCCloudManager(manager.Manager):
         compute.utils.notify_about_instance_usage(
             self.notifier, ctx, instance_ref, 'delete.sync', network_info={},
             system_metadata={}, extra_usage_info={})
+        LOG.debug(_('Send a notification about instance deletion of %s') 
+                  % instance_ref.get('uuid'))
+        LOG.debug(_('Exit to unregister instance of %s .')
+                  % local_instance.get('uuid'))
 
     def _is_pvc_instance(self, ctx, local_instance):
         """
@@ -1537,6 +1546,9 @@ class PowerVCCloudManager(manager.Manager):
         """Remove the local instance if it's not performing a task and
         its vm_state is not BUILDING|DELETED|SOFT_DELETED|DELETING(force).
         """
+        LOG.debug(_('Enter to remove local instance of %s') 
+                  % local_instance.get('uuid'))
+
         local_task_state = local_instance.get('task_state')
         local_vm_state = local_instance.get('vm_state')
         LOG.debug(_('Remove local instance %(ins)s, vm_state: %(vm)s, '
@@ -1562,6 +1574,8 @@ class PowerVCCloudManager(manager.Manager):
             local_vm_state != vm_states.BUILDING
         ):
             self._unregister_instance(context, local_instance)
+            LOG.debug(_('Exit to remove local instance of %s') 
+                      % local_instance.get('uuid'))
             return True
 
         LOG.debug(_('Skip remove local_instance %(ins)s from local DB, because'
@@ -1774,7 +1788,9 @@ class PowerVCCloudManager(manager.Manager):
             except Exception, e:
                 count_errors += 1
                 LOG.error(_("_periodic_instance_sync pvc to local: ") + str(e))
-
+                import traceback
+                LOG.exception(_("Exception detail info is %s"),
+                              traceback.format_exc())
         # Sync. from local nova DB to PowerVC, to remove invalid instances
         # that are not in PowerVC anymore. This only happens during a full
         # sync of all instances.
@@ -1792,7 +1808,9 @@ class PowerVCCloudManager(manager.Manager):
             except Exception, e:
                 count_errors += 1
                 LOG.error(_("_periodic_instance_sync local to pvc: " + str(e)))
-
+                import traceback
+                LOG.exception(_("Exception detail info is %s"),
+                              traceback.format_exc())
         LOG.info(_("""
                     *******************************
                     Instance sync. is complete.

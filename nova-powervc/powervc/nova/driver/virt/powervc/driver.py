@@ -232,7 +232,7 @@ class PowerVCDriver(driver.ComputeDriver):
                                   attached to the instance.
         """
         LOG.info(_("Deploying instance %(uuid)s") % instance)
-
+        LOG.debug(_("Enter to deploy instance for %(uuid)s") % instance)
         # get PowerVC Image id
         pvcimage = self._get_pvc_image_uuid(image_meta)
 
@@ -286,7 +286,7 @@ class PowerVCDriver(driver.ComputeDriver):
                                                       context, instance)
 
         LOG.debug("Succeeded to created instance to spawn: %s" % createdServer)
-
+        LOG.debug("Exit to deploy instance for %s" % createdServer)
         return createdServer
 
     def _clean_vm_and_save_fault_message(self, exp, message, context,
@@ -345,6 +345,8 @@ class PowerVCDriver(driver.ComputeDriver):
         :param destroy_disks: Indicates if disks should be destroyed
 
         """
+        LOG.debug(_("Enter to destroy instance of %(uuid)s") % 
+                    instance.get('uuid'))
         return self._service.destroy(instance)
 
     def reboot(self, context, instance, network_info, reboot_type,
@@ -563,6 +565,7 @@ class PowerVCDriver(driver.ComputeDriver):
         :param power_on: True if the instance should be powered on, False
                          otherwise
         """
+        LOG.debug(_("Enter to resize instance of %(uuid)s") % instance)
         returnvalue = False
 
         if resize_instance:
@@ -585,7 +588,7 @@ class PowerVCDriver(driver.ComputeDriver):
         start the instance directly.
         Based on the above reason, remove the 'power-on' operation.
         """
-
+        LOG.debug(_("Exit to resize instance of %(uuid)s") % instance)
         return returnvalue
 
     def confirm_migration(self, migration, instance, network_info):
