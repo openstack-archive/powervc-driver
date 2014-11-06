@@ -24,6 +24,10 @@ LOCAL_PVC_PREFIX = 'pvc:'
 # The composite PowerVC storage backend
 POWERVC_VOLUME_BACKEND = 'powervc'
 
+# AMQP constants
+AMPQ_EXCHANGE = 'cinder'
+AMPQ_TOPIC = 'notifications'
+
 # PowerVC volume & volume type notification events that we listen for
 EVENT_VOLUME_TYPE_CREATE = 'volume_type.create'
 EVENT_VOLUME_TYPE_DELETE = 'volume_type.delete'

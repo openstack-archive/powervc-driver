@@ -24,6 +24,10 @@ POWERVC_SUPPORTED_INSTANCES = [('ppc64', 'powervm', 'hvm'),
 # Suffix to append to sync event notifications
 SYNC_EVENT_SUFFIX = 'sync'
 
+# AMQP constants
+AMPQ_EXCHANGE = 'nova'
+AMPQ_TOPIC = 'notifications'
+
 # PowerVC instance notification events that we listen for
 EVENT_INSTANCE_UPDATE = 'compute.instance.update'
 EVENT_INSTANCE_CREATE = 'compute.instance.create.end'
