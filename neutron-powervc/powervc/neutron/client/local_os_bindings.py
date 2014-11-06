@@ -24,10 +24,6 @@ from powervc.neutron.db import powervc_db_v2
 from powervc.common import config as cfg
 from powervc.common import messaging
 
-from oslo.messaging.notify import listener
-from oslo.messaging import target
-from oslo.messaging import transport
-
 LOG = logging.getLogger(__name__)
 
 
@@ -53,11 +49,6 @@ class Client(neutron_client_bindings.Client):
 
         LOG.debug("Enter _create_amqp_listeners(local) method")
 
-        trans = transport.get_transport(cfg.AMQP_OPENSTACK_CONF)
-        targets = [
-            target.Target(exchange=constants.QPID_EXCHANGE,
-                          topic=constants.QPID_TOPIC)
-        ]
         endpoint = messaging.NotificationEndpoint(log=LOG)
 
         endpoint.register_handler(constants.EVENT_NETWORK_CREATE,
@@ -84,12 +75,10 @@ class Client(neutron_client_bindings.Client):
         ]
 
         LOG.debug("Starting to listen...... ")
-
-        local_neutron_listener = listener.\
-            get_notification_listener(trans, targets, endpoints,
-                                      allow_requeue=False)
-        messaging.start_notification_listener(local_neutron_listener)
-
+        messaging.start_listener(cfg.AMQP_OPENSTACK_CONF,
+                                 constants.QPID_EXCHANGE,
+                                 constants.QPID_TOPIC,
+                                 endpoints)
         LOG.debug("Exit _create_amqp_listeners(local) method")
 
     def _handle_network_create(self,
