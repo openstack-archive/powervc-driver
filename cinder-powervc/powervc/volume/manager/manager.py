@@ -1,4 +1,4 @@
-# Copyright 2013 IBM Corp.
+# Copyright 2013, 2014 IBM Corp.
 
 # from cinderclient.v1 import client
 import cinder.db.sqlalchemy.models
@@ -19,10 +19,6 @@ from powervc.common import utils
 from powervc.common.client import delegate as ctx_delegate
 
 from powervc.common import messaging
-
-from oslo.messaging.notify import listener
-from oslo.messaging import target
-from oslo.messaging import transport
 
 CONF = config.CONF
 LOG = log.getLogger(__name__)
@@ -157,10 +153,6 @@ class PowerVCCinderManager(service.Service):
         """
         LOG.debug("Enter _create_powervc_listeners method")
 
-        trans = transport.get_transport(config.AMQP_POWERVC_CONF)
-        targets = [
-            target.Target(exchange='cinder', topic='notifications')
-        ]
         endpoint = messaging.NotificationEndpoint(log=LOG, sec_context=ctx)
 
         # Volume type creation
@@ -217,12 +209,10 @@ class PowerVCCinderManager(service.Service):
         ]
 
         LOG.debug("Starting to listen...... ")
-
-        pvc_cinder_listener = listener.\
-            get_notification_listener(trans, targets, endpoints,
-                                      allow_requeue=False)
-        messaging.start_notification_listener(pvc_cinder_listener)
-
+        messaging.start_listener(config.AMQP_POWERVC_CONF,
+                                 constants.AMPQ_EXCHANGE,
+                                 constants.AMPQ_TOPIC,
+                                 endpoints)
         LOG.debug("Exit _create_powervc_listeners method")
 
     def _periodic_volume_type_sync(self, context, vol_type_ids=None):
