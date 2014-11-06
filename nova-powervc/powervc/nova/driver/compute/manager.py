@@ -45,10 +45,6 @@ from powervc.common.client import delegate as ctx_delegate
 
 from powervc.common import messaging
 
-from oslo.messaging.notify import listener
-from oslo.messaging import target
-from oslo.messaging import transport
-
 LOG = logging.getLogger(__name__)
 
 CONF = cfg.CONF
@@ -934,10 +930,6 @@ class PowerVCCloudManager(manager.Manager):
 
         LOG.debug("Enter _create_local_listeners method")
 
-        trans = transport.get_transport(cfg.AMQP_OPENSTACK_CONF)
-        targets = [
-            target.Target(exchange='nova', topic='notifications')
-        ]
         endpoint = messaging.NotificationEndpoint(log=LOG, sec_context=ctx)
 
         # Instance state changes
@@ -955,12 +947,10 @@ class PowerVCCloudManager(manager.Manager):
         ]
 
         LOG.debug("Starting to listen...... ")
-
-        local_nova_listener = listener.\
-            get_notification_listener(trans, targets, endpoints,
-                                      allow_requeue=False)
-        messaging.start_notification_listener(local_nova_listener)
-
+        messaging.start_listener(cfg.AMQP_OPENSTACK_CONF,
+                                 'nova',
+                                 'notifications',
+                                 endpoints)
         LOG.debug("Exit _create_local_listeners method")
 
     def _create_powervc_listeners(self, ctx):
@@ -973,10 +963,6 @@ class PowerVCCloudManager(manager.Manager):
 
         LOG.debug("Enter _create_powervc_listeners method")
 
-        trans = transport.get_transport(cfg.AMQP_POWERVC_CONF)
-        targets = [
-            target.Target(exchange='nova', topic='notifications')
-        ]
         endpoint = messaging.NotificationEndpoint(log=LOG, sec_context=ctx)
 
         # Instance creation
@@ -1014,12 +1000,10 @@ class PowerVCCloudManager(manager.Manager):
         ]
 
         LOG.debug("Starting to listen...... ")
-
-        pvc_nova_listener = listener.\
-            get_notification_listener(trans, targets, endpoints,
-                                      allow_requeue=False)
-        messaging.start_notification_listener(pvc_nova_listener)
-
+        messaging.start_listener(cfg.AMQP_POWERVC_CONF,
+                                 'nova',
+                                 'notifications',
+                                 endpoints)
         LOG.debug("Exit _create_powervc_listeners method")
 
     def _handle_local_instance_create(self,
