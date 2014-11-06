@@ -1,4 +1,4 @@
-# Copyright 2013 IBM Corp.
+# Copyright 2013, 2014 IBM Corp.
 
 """
 All constants.
@@ -23,6 +23,10 @@ POWERVC_SUPPORTED_INSTANCES = [('ppc64', 'powervm', 'hvm'),
 
 # Suffix to append to sync event notifications
 SYNC_EVENT_SUFFIX = 'sync'
+
+# AMQP constants
+AMQP_EXCHANGE = 'nova'
+AMQP_TOPIC = 'notifications'
 
 # PowerVC instance notification events that we listen for
 EVENT_INSTANCE_UPDATE = 'compute.instance.update'
