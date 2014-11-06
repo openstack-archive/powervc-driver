@@ -32,10 +32,6 @@ from powervc.common import utils
 
 from powervc.common import messaging
 
-from oslo.messaging.notify import listener
-from oslo.messaging import target
-from oslo.messaging import transport
-
 CONF = glance_config.CONF
 
 LOG = logging.getLogger(__name__)
@@ -2388,11 +2384,6 @@ class PowerVCImageManager(service.Service):
 
         LOG.debug("Enter _start_local_event_handler method")
 
-        trans = transport.get_transport(config.AMQP_OPENSTACK_CONF)
-        targets = [
-            target.Target(exchange=constants.IMAGE_EVENT_EXCHANGE,
-                          topic=constants.IMAGE_EVENT_TOPIC)
-        ]
         endpoint = messaging.NotificationEndpoint(log=LOG)
 
         endpoint.register_handler(constants.IMAGE_EVENT_TYPE_ALL,
@@ -2403,12 +2394,10 @@ class PowerVCImageManager(service.Service):
         ]
 
         LOG.debug("Starting to listen...... ")
-
-        local_glance_listener = listener.\
-            get_notification_listener(trans, targets, endpoints,
-                                      allow_requeue=False)
-        messaging.start_notification_listener(local_glance_listener)
-
+        messaging.start_listener(config.AMQP_OPENSTACK_CONF,
+                                 constants.IMAGE_EVENT_EXCHANGE,
+                                 constants.IMAGE_EVENT_TOPIC,
+                                 endpoints)
         LOG.debug("Exit _start_local_event_handler method")
 
         self.local_event_handler_running = True
@@ -2427,11 +2416,6 @@ class PowerVCImageManager(service.Service):
 
         LOG.debug("Enter _start_pvc_event_handler method")
 
-        trans = transport.get_transport(config.AMQP_POWERVC_CONF)
-        targets = [
-            target.Target(exchange=constants.IMAGE_EVENT_EXCHANGE,
-                          topic=constants.IMAGE_EVENT_TOPIC)
-        ]
         endpoint = messaging.NotificationEndpoint(log=LOG)
 
         endpoint.register_handler(constants.IMAGE_EVENT_TYPE_ALL,
@@ -2442,12 +2426,10 @@ class PowerVCImageManager(service.Service):
         ]
 
         LOG.debug("Starting to listen...... ")
-
-        pvc_glance_listener = listener.\
-            get_notification_listener(trans, targets, endpoints,
-                                      allow_requeue=False)
-        messaging.start_notification_listener(pvc_glance_listener)
-
+        messaging.start_listener(config.AMQP_POWERVC_CONF,
+                                 constants.IMAGE_EVENT_EXCHANGE,
+                                 constants.IMAGE_EVENT_TOPIC,
+                                 endpoints)
         LOG.debug("Exit _start_pvc_event_handler method")
 
         self.pvc_event_handler_running = True

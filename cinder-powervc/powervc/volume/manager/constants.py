@@ -1,4 +1,4 @@
-# Copyright 2013 IBM Corp.
+# Copyright 2013, 2014 IBM Corp.
 
 """
 All constants.
@@ -23,6 +23,10 @@ LOCAL_PVC_PREFIX = 'pvc:'
 
 # The composite PowerVC storage backend
 POWERVC_VOLUME_BACKEND = 'powervc'
+
+# AMQP constants
+AMQP_EXCHANGE = 'cinder'
+AMQP_TOPIC = 'notifications'
 
 # PowerVC volume & volume type notification events that we listen for
 EVENT_VOLUME_TYPE_CREATE = 'volume_type.create'

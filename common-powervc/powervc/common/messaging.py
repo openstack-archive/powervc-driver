@@ -5,10 +5,18 @@ AMQP messages based on olso.messaging framework.
 """
 
 import fnmatch
+import logging
+import inspect
+import socket
 import threading
 import time
 
+from oslo.messaging import target
+from oslo.messaging import transport
 from oslo.messaging.notify import dispatcher
+from oslo.messaging.notify import listener
+
+LOG = logging.getLogger(__name__)
 
 
 class NotificationEndpoint(object):
@@ -165,7 +173,7 @@ class NotificationEndpoint(object):
             self._handler_map[et] = handler
 
 
-def start_notification_listener(notification_listener):
+def _start_notification_listener(notification_listener):
     def _run():
         notification_listener.start()
         notification_listener.wait()
@@ -176,3 +184,35 @@ def start_notification_listener(notification_listener):
     """
     t = threading.Thread(target=_run)
     t.start()
+
+
+def _get_pool_name(exchange):
+    """Get the pool name for the listener, it will be formated as
+    'powervdriver-exchange-hostname'
+
+    :param: exchange exchange name
+    """
+    pool_name = 'powervcdriver-%s-%s' % (exchange, socket.gethostname())
+    LOG.info("Listener pool name is %s" % pool_name)
+    return pool_name
+
+
+def start_listener(conf, exchange, topic, endpoints):
+    """Start up  notification listener
+
+    :param: conf configuration object for listener
+    :param: exchange exchange name
+    :param: topic topic name
+    :param: endpoints the listener endpoints
+    """
+    trans = transport.get_transport(conf)
+    targets = [target.Target(exchange=exchange, topic=topic)]
+    create_listener = listener.get_notification_listener
+    if 'pool' in inspect.getargspec(create_listener).args:
+        pool_name = _get_pool_name(exchange)
+        mylistener = create_listener(trans, targets, endpoints,
+                                     allow_requeue=False, pool=pool_name)
+    else:
+        mylistener = create_listener(trans, targets, endpoints,
+                                     allow_requeue=False)
+    _start_notification_listener(mylistener)

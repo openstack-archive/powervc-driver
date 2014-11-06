@@ -50,9 +50,9 @@ PORT_CREATE_FIELDS = ['name',
                       'device_owner']
 PORT_UPDATE_FIELDS = ['name']
 
-# Qpid message handling
-QPID_EXCHANGE = 'neutron'
-QPID_TOPIC = 'notifications'
+# amqp message handling
+AMQP_EXCHANGE = 'neutron'
+AMQP_TOPIC = 'notifications'
 
 EVENT_END_THREAD = 'thread.end'
 EVENT_FULL_SYNC = 'full.sync'
