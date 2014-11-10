@@ -370,7 +370,7 @@ class PowerVCDriverTestCase(test.NoDBTestCase):
         pvc_driver._service.update_correct_host = MagicMock()
         context = 0
         migration = 0
-        instance = 0
+        instance = {'uuid': '582124fc-2ebb-441c-8418-c742078d2738'}
         disk_info = 0
         network_info = 0
         image_meta = 0
