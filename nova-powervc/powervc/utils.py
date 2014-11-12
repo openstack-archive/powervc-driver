@@ -1,4 +1,4 @@
-# Copyright 2013 IBM Corp.
+# Copyright 2013, 2014 IBM Corp.
 
 """PowerVC Driver related Utilities"""
 
@@ -83,6 +83,7 @@ def fill_metadata_dict_by_pvc_instance(metadata, pvc_instance):
     This common method help to get PowerVC unique property into metadata
     """
     if pvc_instance is None or not isinstance(pvc_instance, dict):
+        LOG.warning('pvc instance is not a dict: %s' % pvc_instance)
         return {}
     if metadata is None:
         metadata = {}
