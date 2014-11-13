@@ -245,15 +245,17 @@ class PowerVCDriverTestCase(test.NoDBTestCase):
 
     def test__check_defer_placement(self):
         os_instance = FakeOSInstance()
-        driver = self._driver
         os_instance.os_instance['metadata']['powervm:defer_placement'] = 'true'
-        self.assertTrue(driver._check_defer_placement(os_instance))
+        self.assertTrue(powervc_utils.
+            instance_enabled_defer_placement(os_instance))
         os_instance.os_instance['metadata']['powervm:defer_placement'] = \
             'false'
-        self.assertFalse(driver._check_defer_placement(os_instance))
+        self.assertFalse(powervc_utils.
+            instance_enabled_defer_placement(os_instance))
         # if the property is not presented
         del os_instance.os_instance['metadata']['powervm:defer_placement']
-        self.assertFalse(driver._check_defer_placement(os_instance))
+        self.assertFalse(powervc_utils.
+            instance_enabled_defer_placement(os_instance))
 
     def test_check_can_live_migrate_destination_defer_placement(self):
         os_instance = FakeOSInstance()
@@ -686,9 +688,11 @@ class TestDriver(unittest.TestCase):
             mock.MagicMock()
         self.powervc_driver._service._validate_response = \
             mock.MagicMock()
-        result = self.powervc_driver.destroy(context,
-                                             instance, network_info)
-        self.assertEqual(result, True, "delete success")
+        with mock.patch('powervc.common.utils.Utils.add_deleted_pvc',
+                        mock.MagicMock()):
+            result = self.powervc_driver.destroy(context,
+                                                 instance, network_info)
+            self.assertEqual(result, True, "delete success")
 
     def test_destroy_not_found_exception(self):
         instance = self.fake_instance_for_destroy()
@@ -764,54 +768,6 @@ class TestDriver(unittest.TestCase):
         return instance
 
 
-class TestGetInstance(testtools.TestCase):
-    """This is the test fixture for PowerVCDriver.get_instance."""
-
-    def setUp(self):
-        """Prepare for this test fixture."""
-        super(TestGetInstance, self).setUp()
-        self.pvc_id = 123456789
-        # save before monkey patch
-        self.pvcdrv_init_copy = PowerVCDriver.__init__
-
-    def test_get_instance_found(self):
-        """When get instance find an instance."""
-        pvc_svc = mock.MagicMock()
-        pvc_svc.get_instance = mock.MagicMock(return_value="an instance")
-
-        def pvc_drv_init_instance_found(self):
-            """A fake init to replace PowerVCDriver.__init__."""
-            self._service = pvc_svc
-
-        # monkey patch
-        PowerVCDriver.__init__ = pvc_drv_init_instance_found
-        pvc_drv = PowerVCDriver()
-
-        self.assertIsNotNone(pvc_drv.get_instance(self.pvc_id))
-
-    def test_get_instance_not_found(self):
-        """When get instance find nothing."""
-        pvc_svc = mock.MagicMock()
-        pvc_svc.get_instance = \
-            mock.MagicMock(side_effect=exceptions.NotFound(0))
-
-        def pvc_drv_init_instance_not_found(self):
-            """A fake init to replace PowerVCDriver.__init__."""
-            self._service = pvc_svc
-
-        # monkey patch
-        PowerVCDriver.__init__ = pvc_drv_init_instance_not_found
-        pvc_drv = PowerVCDriver()
-
-        self.assertIsNone(pvc_drv.get_instance(self.pvc_id))
-
-    def tearDown(self):
-        """Clean work for this test fixture."""
-        super(TestGetInstance, self).tearDown()
-        # restore from monkey patch
-        PowerVCDriver.__init__ = self.pvcdrv_init_copy
-
-
 class TestGetInfo(testtools.TestCase):
     """This is the test fixture for PowerVCDriver.get_info."""
 
@@ -832,28 +788,29 @@ class TestGetInfo(testtools.TestCase):
 
     def test_get_info_success(self):
         """When everything is fine in the main path."""
-        self.pvc_drv.get_instance = \
-            mock.MagicMock(return_value=self.pvc_instance)
-        self.assertEqual(self.pvc_drv.get_info(self.os_instance),
-                         {'state': 1,
-                          'max_mem': 8192,
-                          'mem': 2048,
-                          'num_cpu': 2,
-                          'cpu_time': 0
-                          }
-                         )
+        with mock.patch('powervc.utils.fetch_pvc_instance',
+                        mock.MagicMock(return_value=self.pvc_instance)):
+            self.assertEqual(self.pvc_drv.get_info(self.os_instance),
+                             {'state': 1,
+                              'max_mem': 8192,
+                              'mem': 2048,
+                              'num_cpu': 2,
+                              'cpu_time': 0
+                              }
+                             )
 
     def test_get_info_instance_not_found_0(self):
         """When any exception occurred during fetch PVC LPAR instance."""
-        self.pvc_drv.get_instance = \
-            mock.MagicMock(side_effect=exception.NotFound())
-        self.assertRaises(exception.NotFound,
-                          self.pvc_drv.get_info,
-                          self.os_instance)
+        with mock.patch('powervc.utils.fetch_pvc_instance',
+                        mock.MagicMock(side_effect=exception.NotFound())):
+            self.assertRaises(exception.NotFound,
+                              self.pvc_drv.get_info,
+                              self.os_instance)
 
     def test_get_info_instance_not_found_1(self):
         """When no PVC LPAR instance found."""
-        self.pvc_drv.get_instance = mock.MagicMock(return_value=None)
-        self.assertRaises(exception.NotFound,
-                          self.pvc_drv.get_info,
-                          self.os_instance)
+        with mock.patch('powervc.utils.fetch_pvc_instance',
+                        mock.MagicMock(return_value=None)):
+            self.assertRaises(exception.NotFound,
+                              self.pvc_drv.get_info,
+                              self.os_instance)

@@ -1,6 +1,6 @@
 # Copyright 2013, 2014 IBM Corp.
 import unittest
-import mox
+import mock
 
 from nova.i18n import _
 
@@ -24,9 +24,6 @@ class TestSyncInstance(unittest.TestCase):
         """
         The method "setUp" is used to initialize the fake environment
         """
-
-        # Create an instance of Mox
-        self.moxer = mox.Mox()
 
         # Create a fake OpenStack flavor object
         self.osflavor = FakeOSFlavor()
@@ -59,61 +56,43 @@ class TestSyncInstance(unittest.TestCase):
             return ""
 
         PowerVCCloudManager.__init__ = init
-        Utils.__init__ = init_utils
+        self.utils_patch = mock.patch('powervc.common.utils.Utils.__init__',
+                                      init_utils)
+        self.utils_patch.start()
         Utils.get_local_staging_project_id = fake_get_id
         Utils.get_local_staging_user_id = fake_get_user_id
 
         self.PowerVCCloudManager = PowerVCCloudManager()
 
     def tearDown(self):
-        pass
+        self.utils_patch.stop()
 
     def test_translate_pvc_instance(self):
 
         pvc_instance = self.pvcinstance.pvc_instance
         ctx = self.ctx
 
-        self.moxer.StubOutWithMock(self.PowerVCCloudManager._staging_cache,
-                                   "get_staging_user_and_project")
         self.PowerVCCloudManager._staging_cache.\
-            get_staging_user_and_project(True)\
-            .AndReturn(('', ''))
-        self.moxer.StubOutWithMock(self.PowerVCCloudManager,
-                                   "_get_image_from_instance")
-        self.PowerVCCloudManager._get_image_from_instance(ctx,
-                                                          pvc_instance,
-                                                          None)\
-            .AndReturn(self.osimage.os_image)
+            get_staging_user_and_project = lambda x: ('', '') if x else None
 
-        self.moxer.StubOutWithMock(self.PowerVCCloudManager,
-                                   "_get_flavor_from_instance")
-        self.PowerVCCloudManager._get_flavor_from_instance(ctx,
-                                                           pvc_instance,
-                                                           None)\
-            .AndReturn(self.osflavor.os_flavor)
+        self.PowerVCCloudManager._get_image_from_instance =\
+            mock.MagicMock(side_effect=[self.osimage.os_image])
 
-        self.moxer.StubOutWithMock(flavors, "save_flavor_info")
-        flavors.save_flavor_info(dict(), self.osflavor.os_flavor)\
-            .AndReturn("system_metadata")
+        self.PowerVCCloudManager._get_flavor_from_instance =\
+            mock.MagicMock(side_effect=[self.osflavor.os_flavor])
 
-        self.moxer.StubOutWithMock(self.PowerVCCloudManager,
-                                   "_get_instance_root_device_name")
+        self.PowerVCCloudManager._get_instance_root_device_name =\
+            mock.MagicMock(side_effect=['/dev/sda'])
 
-        getInsRDN = self.PowerVCCloudManager._get_instance_root_device_name
-        getInsRDN(pvc_instance, None).AndReturn("/dev/sda")
+        with mock.patch('nova.compute.flavors.save_flavor_info',
+                        mock.MagicMock(side_effect=['system_metadata'])):
+            ins, _, _ = self.PowerVCCloudManager.\
+                _translate_pvc_instance(ctx, pvc_instance)
 
-        self.moxer.ReplayAll()
+            print "====ins==================================================="
+            print ins
+            print "===self.osinstance.os_instance============================"
+            print self.osinstance.os_instance
+            print "=========================================================="
 
-        ins, image, flavor = self.PowerVCCloudManager.\
-            _translate_pvc_instance(ctx, pvc_instance)
-
-        self.moxer.UnsetStubs()
-        self.moxer.VerifyAll()
-
-        print "====ins======================================================="
-        print ins
-        print "===self.osinstance.os_instance================================"
-        print self.osinstance.os_instance
-        print "=============================================================="
-
-        self.assertEqual(ins, self.osinstance.os_instance)
+            self.assertEqual(ins, self.osinstance.os_instance)
