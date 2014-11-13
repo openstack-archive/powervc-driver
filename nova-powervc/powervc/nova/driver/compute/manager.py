@@ -302,6 +302,8 @@ class PowerVCCloudManager(manager.Manager):
         base_options['display_name'] = local_instance.get('display_name')
 
         self.compute_api.update(context, local_instance, **base_options)
+        LOG.debug("update local db instance: %s with "
+                  "data: %s" % (local_instance, base_options))
         self.sync_volume_attachment(context,
                                     pvc_instance['id'],
                                     local_instance)
@@ -461,7 +463,7 @@ class PowerVCCloudManager(manager.Manager):
                             "associated host or hypervisor. Skip to sync" %
                             pvc_instance['id']))
                 return
-
+        LOG.debug("entering to insert local instance for: %s" % pvc_instance)
         ins, image, flavor = self._translate_pvc_instance(ctx, pvc_instance)
         security_group_map = self.\
             _get_security_group_for_instance(ctx, pvc_instance)
@@ -485,7 +487,8 @@ class PowerVCCloudManager(manager.Manager):
             power_state=pvc_instance['OS-EXT-STS:power_state'],
             vm_state=pvc_instance['OS-EXT-STS:vm_state'],
             task_state=pvc_instance['OS-EXT-STS:task_state'])
-
+        LOG.debug("created local db instance: %s for "
+                  "powervc instance: %s" % (db_instance, pvc_instance))
         self.sync_volume_attachment(ctx,
                                     ins['metadata'][constants.PVC_ID],
                                     db_instance)
@@ -504,6 +507,7 @@ class PowerVCCloudManager(manager.Manager):
         compute.utils.notify_about_instance_usage(
             self.notifier, ctx, db_instance, 'create.sync', network_info={},
             system_metadata={}, extra_usage_info={})
+        LOG.debug("exiting to insert local instance for: %s" % pvc_instance)
 
     # Remove an instance that is not in pvc anymore from local DB.
     # TODO: This is not being used. Do we need to worry about deleting metadata
@@ -1069,7 +1073,7 @@ class PowerVCCloudManager(manager.Manager):
         :param: event_type message event type
         :param: payload The AMQP message sent from OpenStack (dictionary)
         """
-        hosting_id = self._pre_process_message(payload)
+        hosting_id = self._pre_process_message(payload, event_type, True)
 
         # Attempt to get the local instance.
         instance = None
@@ -1114,7 +1118,7 @@ class PowerVCCloudManager(manager.Manager):
         :param: event_type message event type
         :param: payload The AMQP message sent from OpenStack (dictionary)
         """
-        powervc_instance_id = self._pre_process_message(payload)
+        powervc_instance_id = self._pre_process_message(payload, event_type)
 
         # Check for matching local instance
         matched_instances = self._get_local_instance_by_pvc_id(
@@ -1157,7 +1161,7 @@ class PowerVCCloudManager(manager.Manager):
         :param: event_type message event type
         :param: payload The AMQP message sent from OpenStack (dictionary)
         """
-        powervc_instance_id = self._pre_process_message(payload)
+        powervc_instance_id = self._pre_process_message(payload, event_type)
 
         # Check for matching local instance
         matched_instances = self._get_local_instance_by_pvc_id(
@@ -1185,7 +1189,7 @@ class PowerVCCloudManager(manager.Manager):
         :param: event_type message event type
         :param: payload The AMQP message sent from OpenStack (dictionary)
         """
-        powervc_instance_id = self._pre_process_message(payload)
+        powervc_instance_id = self._pre_process_message(payload, event_type)
 
         local_instance = self.\
             _get_matched_instance_by_pvc_id(context, powervc_instance_id)
@@ -1210,7 +1214,7 @@ class PowerVCCloudManager(manager.Manager):
         :param: event_type message event type
         :param: payload The AMQP message sent from OpenStack (dictionary)
         """
-        powervc_instance_id = self._pre_process_message(payload)
+        powervc_instance_id = self._pre_process_message(payload, event_type)
 
         local_instance = self.\
             _get_matched_instance_by_pvc_id(context, powervc_instance_id)
@@ -1241,7 +1245,7 @@ class PowerVCCloudManager(manager.Manager):
         self.sync_volume_attachment(context, powervc_instance_id,
                                     local_instance)
 
-    def _pre_process_message(self, payload):
+    def _pre_process_message(self, payload, eventtype=None, local=False):
         """Logging the event type and return the instance id of the nova server
         instance in the event
 
@@ -1249,6 +1253,8 @@ class PowerVCCloudManager(manager.Manager):
         :returns instance id triggering the event
         """
         instance_id = payload.get('instance_id')
+        LOG.debug("Handling %s notification type %s for instance: "
+                  "%s" % ('local' if local else '', eventtype, instance_id))
         return instance_id
 
     def _get_matched_instance_by_pvc_id(self, context, pvc_id):
@@ -1345,7 +1351,8 @@ class PowerVCCloudManager(manager.Manager):
         # Call the compute API to update the local instance
         instance_ref = self.compute_api.update(context, local_instance,
                                                **updated_instance)
-
+        LOG.debug("update state for local db instance: %s with "
+                  "data: %s" % (local_instance, updated_instance))
         # Send sync notification
         self._send_instance_sync_notification(context, event_type,
                                               instance_ref)
