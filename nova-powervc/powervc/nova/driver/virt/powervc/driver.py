@@ -1,6 +1,5 @@
 # Copyright 2013, 2014 IBM Corp.
 import nova
-from novaclient.exceptions import NotFound
 from novaclient.exceptions import BadRequest
 from nova import exception
 from nova.compute import task_states
@@ -15,6 +14,7 @@ from powervc.nova.common import exception as pvc_exception
 from powervc.common.client import factory
 from powervc.common.gettextutils import _
 from powervc.common import constants as common_constants
+from powervc.common import utils as commonutils
 from oslo.config import cfg
 from powervc import utils as novautils
 from nova import db
@@ -39,17 +39,21 @@ class PowerVCDriver(driver.ComputeDriver):
     password for the target IBM PowerVC system.
     """
     nc = None
-    cached_root_device_map = {}
 
     def __init__(self, virtapi):
         self.virtapi = virtapi
         self._compute_event_callback = None
-        if(PowerVCDriver.nc is None):
+        self._service = service.PowerVCService(self.get_pvc_nova_client())
+        self.hostname = None
+        self.hypervisor_id = None
+        self._stats = None
+
+    @classmethod
+    def get_pvc_nova_client(cls):
+        if PowerVCDriver.nc is None:
             PowerVCDriver.nc = factory.POWERVC.new_client(
                 str(common_constants.SERVICE_TYPES.compute))
-
-        self._service = service.PowerVCService(PowerVCDriver.nc)
-        self._stats = None
+        return PowerVCDriver.nc
 
     def init_host(self, host):
         """Initialize anything that is necessary for the driver to function,
@@ -61,39 +65,17 @@ class PowerVCDriver(driver.ComputeDriver):
         # nova.compute.manager.check_can_live_migrate_destination
         CONF.host = host
         self.host = host
-        # Initialize instance members for the powerVC hostname
-        # and id.
-        hypervisorlist = self._service.list_hypervisors()
-        for hypervisor in hypervisorlist:
-            if hypervisor._info["service"]["host"] == host:
-                # Cache the hostname and hypervisor id
-                self.hostname = hypervisor._info["hypervisor_hostname"]
-                self.hypervisor_id = hypervisor._info["id"]
-                break
+        # Initialize instance members for the PowerVC hostname and id.
+        hypervisor = commonutils.get_utils().get_hypervisor(host)
+        if hypervisor:
+            self.hostname = hypervisor._info['hypervisor_hostname']
+            self.hypervisor_id = hypervisor._info['id']
+        self._update_status(hypervisor)
 
     def _get_instance_by_uuid(self, ctxt, uuid):
         filters = {'uuid': uuid}
         db_matches = db.instance_get_all_by_filters(ctxt, filters)
         return db_matches
-
-    def _get_pvcid_from_metadata(self, instance):
-        """
-        Because the data structure of the instance passed by
-        the nova manager is different from normal structure,
-        use this method to get the PowerVC id from the instance
-        metadata
-        """
-        if not isinstance(instance, dict):
-            instance = instance.__dict__
-        metadata = instance.get('metadata')
-        # In some cases, it's _metadata
-        if metadata is None:
-            metadata = instance.get('_metadata')
-
-        LOG.debug(_("Got metadata: %s") % metadata)
-        pvc_id = novautils.get_pvc_id_from_metadata(metadata)
-        LOG.debug(_("Got pvc_id from _get_pvcid_from_metadata: %s") % pvc_id)
-        return pvc_id
 
     def _int_or_none(self, value):
         try:
@@ -115,15 +97,17 @@ class PowerVCDriver(driver.ComputeDriver):
         LOG.debug(_("get_info() Enter: %s" % str(instance)))
         lpar_instance = None
         try:
-            pvc_id = self._get_pvcid_from_metadata(instance)
+            pvc_id = novautils.get_pvcid_from_local_instance(instance)
             if pvc_id is None:
                 LOG.debug(_("Find pvc_id from DB"))
                 ctx = nova.context.get_admin_context()
                 db_instances = self._get_instance_by_uuid(ctx,
                                                           instance['uuid'])
-                pvc_id = self._get_pvcid_from_metadata(db_instances[0])
+                pvc_id = novautils.\
+                    get_pvcid_from_local_instance(db_instances[0])
             LOG.debug(_("pvc_id: %s" % str(pvc_id)))
-            lpar_instance = self.get_instance(pvc_id)
+            lpar_instance = novautils.fetch_pvc_instance(
+                self.get_pvc_nova_client(), pvc_id)
             LOG.debug(_("Found instance: %s" % str(lpar_instance)))
         except Exception:
             if pvc_id is None:
@@ -162,36 +146,25 @@ class PowerVCDriver(driver.ComputeDriver):
             encouraged to override this method with something more
             efficient.
         """
-        return len(self.list_instances())
+        return len(self._service.list_instances_by_host(self.hostname))
 
     def list_instances(self):
         """
         Return the names of all the instances known to the virtualization
         layer, as a list.
         """
-        return self._service.list_instances()
+        # This method is for nova periodic task cleanup instances on hypervisor
+        # which should never happen for PowerVC driver.
+        # We need to use our background task to do the sync
+        # Always return empty to prevent such disaster
+        return []
 
     def list_instance_uuids(self):
         """
         Return the UUIDS of all the instances known to the virtualization
         layer, as a list.
         """
-        servers = self.list_instances()
-        uuids = []
-        for server in servers:
-            uuids.append(server.id)
-        return uuids
-
-    def get_instance(self, instance_id):
-        """
-        Get the instance with the given id or None if not found.
-        """
-        instance = None
-        try:
-            instance = self._service.get_instance(instance_id)
-        except NotFound:
-            pass
-        return instance
+        raise NotImplementedError()
 
     def list_flavors(self):
         """
@@ -239,7 +212,7 @@ class PowerVCDriver(driver.ComputeDriver):
         pvcflavor = self._get_pvc_flavor(context, instance)
 
         # check if the host selection will be defer to PowerVC
-        isDefer = self._check_defer_placement(instance)
+        isDefer = novautils.instance_enabled_defer_placement(instance)
 
         # If hosting OS decide to select one host,
         # get the PowerVC Hypervisor host name
@@ -440,10 +413,6 @@ class PowerVCDriver(driver.ComputeDriver):
         """Detach the disk attached to the instance."""
         return self._service.detach_volume(connection_info, instance,
                                            mountpoint)
-
-    def list_os_attachments(self, server_id):
-        """List the volumes attached to the specified instance."""
-        return self._service.list_os_attachments(server_id)
 
     def attach_interface(self, instance, image_meta, vif):
         """Attach an interface to the instance.
@@ -670,10 +639,7 @@ class PowerVCDriver(driver.ComputeDriver):
         by the service. Otherwise, this method should return
         [hypervisor_hostname].
         """
-        stats = self.get_host_stats(refresh=refresh)
-        if not isinstance(stats, list):
-            stats = [stats]
-        return [s['hypervisor_hostname'] for s in stats]
+        return [self.hostname]
 
     def get_available_resource(self, nodename):
         """Retrieve resource information.
@@ -686,7 +652,9 @@ class PowerVCDriver(driver.ComputeDriver):
             a driver that manages only one node can safely ignore this
         :returns: Dictionary describing resources
         """
-        return self._update_status()
+        hypervisor = self.get_hypervisor_by_hostname(self.hostname)
+        self._update_status(hypervisor)
+        return self._stats
 
     def _get_cpu_info(self):
         """Get cpuinfo information.
@@ -726,7 +694,8 @@ class PowerVCDriver(driver.ComputeDriver):
         # Get the latest instance information from powervc and
         # validate its safe to request a live migration.
         meta = instance_ref.get('metadata')
-        lpar_instance = self.get_instance(meta['pvc_id'])
+        lpar_instance = novautils.fetch_pvc_instance(
+            self.get_pvc_nova_client(), meta['pvc_id'])
 
         if lpar_instance is None:
             reason = (_("Unable to migrate uuid:%s."
@@ -778,7 +747,7 @@ class PowerVCDriver(driver.ComputeDriver):
         :params migrate_data: implementation specific params.
 
         """
-        isDefer = self._check_defer_placement(instance_ref)
+        isDefer = novautils.instance_enabled_defer_placement(instance_ref)
         if isDefer:
             dest = None
         try:
@@ -870,7 +839,7 @@ class PowerVCDriver(driver.ComputeDriver):
             raise exception.MigrationPreCheckError(reason=reason)
 
         # check if the host selection will be defer to PowerVC
-        isDefer = self._check_defer_placement(instance_ref)
+        isDefer = novautils.instance_enabled_defer_placement(instance_ref)
         if not isDefer:
             valid_hosts = self._service.get_valid_destinations(instance_ref)
             LOG.debug('compute manager host is %s, valid destination hosts '
@@ -1105,12 +1074,16 @@ class PowerVCDriver(driver.ComputeDriver):
         If 'refresh' is True, run update the stats first.
         """
         if refresh or self._stats is None:
-            self._update_status()
+            hypervisor = self.get_hypervisor_by_hostname(self.hostname)
+            self._update_status(hypervisor)
         return self._stats
 
     def node_is_available(self, nodename):
         """Return that a given node is known and available."""
-        return nodename in self.get_available_nodes(refresh=True)
+        # Always return true here.
+        # It is because if such hypervisor is down, this driver instance will
+        # no longer exists due to associated service is down.
+        return nodename == self.hostname
 
     def block_stats(self, instance_name, disk_id):
         """
@@ -1285,21 +1258,18 @@ class PowerVCDriver(driver.ComputeDriver):
             return self._service.get_hypervisor(self.hypervisor_id)
 
         # (Re)Initialize the cache
-        hypervisorlist = self._service.list_hypervisors()
-        for hypervisor in hypervisorlist:
-            if hypervisor._info["service"]["host"] == self.host:
-                # Cache the hostname and hypervisor id
-                self.hostname = hypervisor._info["hypervisor_hostname"]
-                self.hypervisor_id = hypervisor._info["id"]
+        hypervisor = commonutils.get_utils().get_hypervisor(self.host)
+        if hypervisor:
+            self.hostname = hypervisor._info['hypervisor_hostname']
+            self.hypervisor_id = hypervisor._info['id']
+        return hypervisor
 
-        return self._service.get_hypervisor(self.hypervisor_id)
-
-    def _update_status(self):
+    def _update_status(self, hypervisor):
         """Retrieve status info from PowerVC."""
         LOG.debug(_("Updating host stats"))
-        hypervisor = self.get_hypervisor_by_hostname(self.hostname)
-        if hypervisor is None:
-            return None
+        if not hypervisor:
+            return
+
         info = hypervisor._info
 
         local_gb = info["local_gb"]
@@ -1332,7 +1302,6 @@ class PowerVCDriver(driver.ComputeDriver):
                     constants.POWERVC_SUPPORTED_INSTANCES)}
 
         self._stats = data
-        return data
 
     def _get_pvc_image_uuid(self, image_meta):
         """
@@ -1428,80 +1397,8 @@ class PowerVCDriver(driver.ComputeDriver):
         # TODO: Need to revisit this method after confirmation with powervc
         return ':' + instance['host']
 
-    def _check_defer_placement(self, instance):
-        """
-        Get instance meta data from instance
-        such as "powervm:defer_placement" : "true"
-        """
-        def str2bool(v):
-            return v.lower() in ('true', u'true')
-
-        # The instance metatdata can be of multiple forms.
-        # Handle cases : dict, list of class InstanceMetadata
-        def get_defer_key_value(meta):
-            if isinstance(meta, dict):
-                for key in meta:
-                    defer_val = meta[key]
-                    if key == u'powervm:defer_placement':
-                        return str2bool(defer_val)
-            else:
-                for entry in meta:
-                    defer_key = entry.get('key', None)
-                    defer_val = entry.get('value', None)
-                    if defer_key == u'powervm:defer_placement':
-                        return str2bool(defer_val)
-            return False
-
-        isDefer = False
-        meta = instance.get('metadata', None)
-        if meta:
-            isDefer = get_defer_key_value(meta)
-
-        return isDefer
-
-    def get_pvc_flavor_by_flavor_id(self, flavor):
-        """
-        Get detailed info of the flavor from the PowerVC
-        """
-        return self._service.get_flavor_by_flavor_id(flavor)
-
     def update_instance_host(self, context, instance):
         """
         Update the host value of the instance from powerVC.
         """
         self._service.update_correct_host(context, instance)
-
-    def cache_volume_data(self):
-        """
-        Cache the volume data during syncing the PowerVC instances.
-        """
-        return self._service.cache_volume_data()
-
-    def get_local_volume_id_from_pvc_id(self, powervc_volume_id):
-        list_all_volumes = self._service._cinderclient.volumes.list_all_volumes
-        volume_search_opts = {"metadata": {"pvc:id": powervc_volume_id}}
-        localvolumes = list_all_volumes(volume_search_opts)
-        if len(localvolumes) == 0:
-            return None
-        if len(localvolumes) > 1:
-            LOG.warning(_('More than one volume in local cinder '
-                          'match one PowerVC volume: %s' %
-                          (powervc_volume_id)))
-
-        localvolume = localvolumes[0]
-        return localvolume.id
-
-    def get_pvc_root_device_name(self, pvc_id):
-        if not self.cached_root_device_map.get(pvc_id):
-            return self.cached_root_device_map.get(pvc_id)
-        list_all_volumes = self._service._pvccinderclient.\
-            volumes.list_all_volumes
-        volume_search_opts = {'metadata': {'is_boot_volume': 'True'}}
-        pvcvolumes = list_all_volumes(search_opts=volume_search_opts)
-        for pvcvolume in pvcvolumes:
-            pvcvolume_attachments = pvcvolume.attachments
-            if len(pvcvolume_attachments) == 0:
-                continue
-            device_name = pvcvolume_attachments[0].get('device')
-            self.cached_root_device_map[pvc_id] = device_name
-        return self.cached_root_device_map.get(pvc_id)

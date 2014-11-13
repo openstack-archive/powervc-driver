@@ -9,7 +9,6 @@ from nova.openstack.common import log as logging
 from nova.compute import vm_states
 from powervc.nova.common.exception import LiveMigrationException
 from powervc.nova.driver.compute import constants
-from powervc.nova.driver.compute import manager as pvc_manager
 from powervc.nova.driver.virt.powervc.rpcapi import NetworkAPI
 from powervc.nova.driver.virt.powervc import pvc_vm_states
 from nova import db
@@ -68,6 +67,14 @@ class PowerVCService(object):
         resp = self._manager.set_host_maintenance_mode(host, mode)
         return resp
 
+    def list_instances_by_host(self, hostname):
+        hypervisor_list = self._hypervisors.search(hostname, servers=True)
+        for hypervisor in hypervisor_list:
+            if hypervisor._info['hypervisor_hostname'] == hostname:
+                return hypervisor._info['servers']
+        else:
+            return []
+
     def list_instances(self):
         """Return the names of all the instances known to the virtualization
         layer, as a list.
@@ -84,12 +91,6 @@ class PowerVCService(object):
         layer, as a list.
         """
         return self._images.list()
-
-    def list_hypervisors(self):
-        """Return the information of all the hypervisors
-        known to the virtualization layer, as a list.
-        """
-        return self._hypervisors.list()
 
     def get_hypervisor(self, hypervisor_id):
         """Return the information of a specific hypervisor
@@ -372,7 +373,7 @@ class PowerVCService(object):
         pvc_flavor_id = pvc_flavor['id']
 
         try:
-            pvc_flavor = self.get_flavor_by_flavor_id(pvc_flavor_id)
+            pvc_flavor = self._flavors.get(pvc_flavor_id)
         except Exception:
             LOG.info(_("Ignore the exception during getting the flavor"))
             return is_flavor_updated
@@ -412,10 +413,6 @@ class PowerVCService(object):
             LOG.debug("Service: got this response: %s"
                       % httpResponse)
             raise exceptions.BadRequest(httpResponse)
-
-    def list_os_attachments(self, server_id):
-        """List volumes of the specified instance"""
-        return self._volumes.get_server_volumes(server_id)
 
     def detach_volume(self, connection_info, instance, mountpoint):
         """Detach the specified volume from the specified instance"""
@@ -544,54 +541,8 @@ class PowerVCService(object):
         instance_primitive = objects_base.obj_to_primitive(instance)
         server = servers.Server(self._manager, instance_primitive)
 
-        # Check whether we can get the metadata from instance
-        key = 'metadata'
-        pvc_id = 0
-        if key not in instance:
-            LOG.info(_('Could not find the metadata from the instance.'))
-            server.id = pvc_id
-            return server
-        metadatas = instance[key]
-
-        # Check whether we can get the pvc_id from the metadata
-        key = 'pvc_id'
-
-        # Handle the situation when doing resize operation,
-        # the metadata in the instance is list type.
-        if (metadatas is not None and isinstance(metadatas, list)):
-            for metadata in metadatas:
-                if metadata['key'] == key:
-                    pvc_id = metadata['value']
-                    server.id = pvc_id
-                    return server
-            # If no pvc_id in list, return it by _get_pvcid_from_metadata()
-            server.id = self._get_pvcid_from_metadata(instance)
-            return server
-
-        if metadatas == [] or key not in metadatas.keys():
-            LOG.info(_('Could not find the pvc_id from the metadata.'))
-            server.id = pvc_id
-            return server
-
-        # Get the pvc_id of the instance
-        pvc_id = metadatas[key]
-        server.id = pvc_id
+        server.id = powervc_utils.get_pvcid_from_local_instance(instance)
         return server
-
-    def _get_pvcid_from_metadata(self, instance):
-        """
-            Because the data structure of the instance passed by
-            the nova manager is different from normal structure,
-            use this method to get the PowerVC id from the instance
-            metadata
-        """
-        pvc_id = ''
-        metadatas = instance['metadata']
-        for key in metadatas:
-            if key == "pvc_id":
-                pvc_id = metadatas[key]
-                break
-        return pvc_id
 
     def list_flavors(self):
         """
@@ -599,12 +550,6 @@ class PowerVCService(object):
         layer, as a list.
         """
         return self._flavors.list()
-
-    def get_flavor_by_flavor_id(self, flavor):
-        """
-        Return the specified flavor with the flavor id
-        """
-        return self._flavors.get(flavor)
 
     def get_flavor_extraspecs(self, flavor):
         """
@@ -866,24 +811,10 @@ class PowerVCService(object):
         timer_result = timer.start(self.longrun_loop_interval * 2,
                                    self.longrun_initial_delay * 2).wait()
         # Add the pvc instance to the global deleted list
-        pvc_manager.deleted_pvc_ids.add(server.id)
+        utils.get_utils().add_deleted_pvc(server.id)
         LOG.debug('Added the deleted powervc instance id %s to the global '
                   'deletion list', server.id)
         return timer_result
-
-    def set_device_id_on_port_by_pvc_instance_uuid(self,
-                                                   ctx,
-                                                   local_ins_id,
-                                                   pvc_ins_id):
-        """
-            Query a sync. local port by a pvc instance id,
-            then set its device_id to a local instance id.
-        """
-        local_ports = self._api.\
-            set_device_id_on_port_by_pvc_instance_uuid(ctx,
-                                                       local_ins_id,
-                                                       pvc_ins_id)
-        return local_ports
 
     def get_pvc_network_uuid(self, ctx, local_id):
         """
@@ -964,8 +895,7 @@ class PowerVCService(object):
         # The resize operation REST API of PowerVC is different
         # from the standard OpenStack.
 
-        server_instance = servers.Server(self._manager, instance)
-        server_instance.id = self._get_pvcid_from_metadata(instance)
+        server_instance = self._get_server(instance)
         server = self._manager.get(server_instance)
 
         LOG.debug("Starting to resize the instance %s",
@@ -1343,24 +1273,6 @@ class PowerVCService(object):
                             reason['resource_property_value'] == 'inactive'):
                                 return False
         return True
-
-    def cache_volume_data(self):
-        """
-        Cache the volume data during the sync instances.
-        """
-        cache_volume = {}
-        local_volumes = self._cinderclient.volumes.list_all_volumes()
-
-        for local_volume in local_volumes:
-            metadata = getattr(local_volume, 'metadata', '')
-            if metadata == '':
-                continue
-            if 'pvc:id' in metadata.keys():
-                pvc_volume_id = metadata['pvc:id']
-                local_volume_id = getattr(local_volume, 'id', '')
-                if pvc_volume_id is not None and local_volume_id != '':
-                    cache_volume[pvc_volume_id] = local_volume_id
-        return cache_volume
 
     def attach_interface(self, context, instance, local_port_id,
                          local_network_id, ipAddress):

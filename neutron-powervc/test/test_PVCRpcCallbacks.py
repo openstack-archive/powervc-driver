@@ -1,9 +1,6 @@
 import unittest
-import mox
-
-import neutron.db.api as db_api
-from powervc.neutron.api.powervc_rpc import PVCRpcCallbacks
-from powervc.neutron.db import powervc_db_v2
+import mock
+from mock import patch
 
 
 class FakeCTX():
@@ -23,27 +20,27 @@ class FakeCTX():
             self.project_id = update['project_id']
 
 
-def dummy():
-    pass
-
-
 class TestSyncInstance(unittest.TestCase):
 
         def setUp(self):
-            # Disable DB init.
-            db_api.get_session = dummy
-            db_api.configure_db = dummy
+            self._dbapi_session = patch('neutron.db.api.get_session')
+            self._dbapi_engine = patch('neutron.db.api.get_engine')
+            self._dbapi_session.start()
+            self._dbapi_engine.start()
+            from powervc.neutron.db import powervc_db_v2
             self._db = powervc_db_v2.PowerVCAgentDB()
+
+            from powervc.neutron.api.powervc_rpc import PVCRpcCallbacks
             self._callback = PVCRpcCallbacks(self)
             # Replace with the dummy DB.
             self._callback.db = self._db
-            self.moxer = mox.Mox()
 
         def get_db_api(self):
             return self._db
 
         def tearDown(self):
-            pass
+            self._dbapi_session.stop()
+            self._dbapi_engine.stop()
 
         def test_get_pvc_network_uuid(self):
             rtn = self._get_pvc_network_uuid(None, None)
@@ -59,15 +56,10 @@ class TestSyncInstance(unittest.TestCase):
 
             context = FakeCTX()
 
-            self.moxer.StubOutWithMock(self._db, "get_network")
-            self._db.get_network(local_id=id_in).AndReturn(id_out)
-
-            self.moxer.ReplayAll()
+            self._db.get_network =\
+                mock.MagicMock(side_effect=[id_out])
 
             rtn = self._callback.get_pvc_network_uuid(context, id_in)
-
-            self.moxer.VerifyAll()
-            self.moxer.UnsetStubs()
 
             print str(rtn)
             return rtn

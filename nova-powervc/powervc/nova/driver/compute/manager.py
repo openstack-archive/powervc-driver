@@ -25,7 +25,6 @@ from nova.image import glance
 from nova.compute import flavors
 from nova.compute import task_states
 from nova.compute import vm_states
-from oslo.utils import importutils
 from nova.openstack.common import log as logging
 from oslo.utils import timeutils
 from nova.openstack.common import loopingcall
@@ -38,8 +37,9 @@ from powervc.nova.driver.compute import computes
 from powervc.nova.driver.compute import constants
 from powervc.nova.driver.compute import task_states as pvc_task_states
 from powervc.nova.driver.virt.powervc.sync import flavorsync
+from powervc.nova.driver.virt.powervc.rpcapi import NetworkAPI
 from powervc import utils
-from powervc.common import utils as utills
+from powervc.common import utils as commonutils
 from powervc.common.gettextutils import _
 from powervc.common.client import delegate as ctx_delegate
 
@@ -48,9 +48,6 @@ from powervc.common import messaging
 LOG = logging.getLogger(__name__)
 
 CONF = cfg.CONF
-
-# store the deleted powervc instance uuids
-deleted_pvc_ids = set()
 
 
 class PowerVCCloudManager(manager.Manager):
@@ -64,22 +61,9 @@ class PowerVCCloudManager(manager.Manager):
         """
         super(PowerVCCloudManager, self).__init__(*args, **kwargs)
 
-        # This needs to be defined in new .conf file.
-        compute_driver = CONF.powervc.powervc_driver
-
-        LOG.info(_("Loading compute driver '%s'") % compute_driver)
-
-        try:
-            self.driver = importutils.import_object_ns(
-                'powervc.nova.driver.virt', compute_driver, None)
-        except ImportError as e:
-            LOG.error(_("Unable to load the PowerVC driver: %s") % (e))
-            sys.exit(1)
-
         # Defer update local vm when powervc vm ids in spawning status
         self.defer_update_local_vm_in_spawning_ids = []
         # The variable used to cache the volume data
-        self.cache_volume = utills.VolumeCache(self.driver)
         self.compute_api = compute.API()
         self.network_api = network.API()
         self.conductor_api = conductor.API()
@@ -98,7 +82,7 @@ class PowerVCCloudManager(manager.Manager):
         ctx = ctx_delegate.context_dynamic_auth_token(orig_ctx, keystone)
         self.project_id = CONF.powervc.admin_tenant_name
 
-        scg_list = utills.get_utils().validate_scgs()
+        scg_list = commonutils.get_utils().validate_scgs()
         if not scg_list:
             LOG.error(_('Nova-powervc service terminated, Invalid Storage'
                         ' Connectivity Group specified.'))
@@ -106,11 +90,14 @@ class PowerVCCloudManager(manager.Manager):
 
         self.scg_id_list = [scg.id for scg in scg_list]
 
-        self._staging_cache = utills.StagingCache()
+        self._staging_cache = commonutils.StagingCache()
+
+        from powervc.nova.driver.virt.powervc.driver import PowerVCDriver
+        self.pvc_nova_client = PowerVCDriver.get_pvc_nova_client()
+        self.neutron_rpc = NetworkAPI()
 
         # Initialize the compute manager
-        self.compute_manager = computes.ComputeServiceManager(self.driver,
-                                                              scg_list)
+        self.compute_manager = computes.ComputeServiceManager(scg_list)
         self.compute_manager.start()
 
         # Check if necessary services are ready.
@@ -128,7 +115,7 @@ class PowerVCCloudManager(manager.Manager):
         self.full_instance_sync_required = False
 
         # Synchronize the public flavors from PowerVC
-        flavorsync.FlavorSync(self.driver,
+        flavorsync.FlavorSync(self.pvc_nova_client,
                               self.scg_id_list).synchronize_flavors(ctx)
 
         # Synchronize instances from PowerVC
@@ -182,7 +169,7 @@ class PowerVCCloudManager(manager.Manager):
 
         try:
             # Get both lists from local DB and PowerVC
-            pvc_instances = self.driver.list_instances()
+            pvc_instances = self.pvc_nova_client.manager.list()
             local_instances = self._get_all_local_instances(ctx)
         except Exception, e:
             # No point to do any following step, if error happens above.
@@ -195,11 +182,6 @@ class PowerVCCloudManager(manager.Manager):
         # to insert new instances and update existing instances
         LOG.info(_("Initial instance sync: pvc -> local"))
         for instance in pvc_instances:
-            """
-                A sample of returned instance from PowerVC:
-                https://w3-connections.ibm.com/wikis/home?lang=en-us#!/
-                wiki/We32ccda54f51_4ede_bfd6_8f9cc4b70d23/page/REST%20Responses
-            """
 
             greenthread.sleep(0)
 
@@ -497,7 +479,7 @@ class PowerVCCloudManager(manager.Manager):
                                     db_instance)
 
         # Fix the network info.
-        local_port_ids = self.driver._service.\
+        local_port_ids = self.neutron_rpc.\
             set_device_id_on_port_by_pvc_instance_uuid(ctx,
                                                        db_instance['uuid'],
                                                        pvc_instance['id'])
@@ -532,15 +514,19 @@ class PowerVCCloudManager(manager.Manager):
         # Since PowerVC server resp does not contain this info, it is needed
         # now to retrieve it through sending another rest api to list
         # volume attachments.
-        attachments = self.driver.list_os_attachments(pvc_instance_id)
+        attachments = self.pvc_nova_client.\
+            volumes.get_server_volumes(pvc_instance_id)
         attached_volume_ids = []
         attached_devices = []
         for attachment in attachments:
             # Each instance has a default volume,
             # which is not what we want to show
+            # FIXME: we should not depends on device name to filter out
+            # boot volume in attachments
             if attachment.device != '/dev/sda':
                 block_device_map = {}
-                vol_id = self.cache_volume.get_by_id(attachment.id)
+                vol_id = commonutils.get_utils().\
+                    get_local_volume_id(attachment.id)
                 if vol_id:
                     block_device_map['volume_id'] = vol_id
                     attached_volume_ids.append(vol_id)
@@ -813,7 +799,7 @@ class PowerVCCloudManager(manager.Manager):
             # Get the db instance flavor
             db_instance_flavor = self._get_local_flavor(ctx, instance_type_id)
             # Get the PowerVC VM instance flavor
-            pvc_flavor = self.driver.get_pvc_flavor_by_flavor_id(pvc_flavor_id)
+            pvc_flavor = self.pvc_nova_client.flavors.get(pvc_flavor_id)
 
             # Check whether the instance has been resized
             pvc_flavor_dict = pvc_flavor.__dict__
@@ -877,8 +863,8 @@ class PowerVCCloudManager(manager.Manager):
                            "which is not synced"))
                 if rtn is None:
                     try:
-                        pvc_flavor = self.driver.\
-                            get_pvc_flavor_by_flavor_id(pvc_flavor_id)
+                        pvc_flavor = self.pvc_nova_client.\
+                            flavors.get(pvc_flavor_id)
 
                         if pvc_flavor is not None:
                             pvc_flavor_dict = pvc_flavor.__dict__
@@ -1055,9 +1041,9 @@ class PowerVCCloudManager(manager.Manager):
             return
 
         # Get the PVC instance
-        pvcid = self.driver._get_pvcid_from_metadata(instance)
-        powervc_instance = self.driver.get_instance(pvcid)
-
+        pvcid = utils.get_pvcid_from_local_instance(instance)
+        powervc_instance = utils.fetch_pvc_instance(
+            self.pvc_nova_client, pvcid)
         if powervc_instance:
             self._update_state(context, instance, powervc_instance, pvcid,
                                constants.EVENT_INSTANCE_UPDATE)
@@ -1088,20 +1074,34 @@ class PowerVCCloudManager(manager.Manager):
 
         # See if the instance is deferring host scheduling.
         # If it is exit immediately.
-        if not self.driver._check_defer_placement(instance):
+        if not utils.instance_enabled_defer_placement(instance):
             LOG.debug(_("Local Instance %s did not defer scheduling")
                       % hosting_id)
             return
 
         # Get the PVC instance
-        pvcid = self.driver._get_pvcid_from_metadata(instance)
+        pvcid = utils.get_pvcid_from_local_instance(instance)
 
         if pvcid is not None:
             if instance:
                 # Convert to primative format from db object
                 instance = jsonutils.to_primitive(instance)
                 try:
-                    self.driver.update_instance_host(context, instance)
+                    pvc_instance = utils.fetch_pvc_instance(
+                        self.pvc_nova_client, pvcid)
+                    if not pvc_instance:
+                        LOG.warning(_('Cannot find pvc instance with id: %s'
+                                      ', when handle local deferred host'
+                                      ' updates'), pvcid)
+                        return
+                    pvc_dict = pvc_instance.__dict__
+                    host = utils.normalize_host(
+                        pvc_dict['OS-EXT-SRV-ATTR:host'])
+                    hostname = pvc_dict['OS-EXT-SRV-ATTR:hypervisor_hostname']
+                    db.instance_update(context, instance['uuid'],
+                                       {'host': host,
+                                        'node': hostname,
+                                        'hostname': hostname})
                 except Exception:
                     LOG.debug(_('Problem updating local instance host '
                                 'information, instance: %s') % instance['id'])
@@ -1122,10 +1122,9 @@ class PowerVCCloudManager(manager.Manager):
         :param: payload The AMQP message sent from OpenStack (dictionary)
         """
         powervc_instance_id = self._pre_process_message(payload, event_type)
-        if powervc_instance_id in deleted_pvc_ids:
+        if commonutils.get_utils().remove_deleted_pvc(powervc_instance_id):
             LOG.warning('Already deleted powervc instance %s is recreated, '
                         'remove it from the global list', powervc_instance_id)
-            deleted_pvc_ids.remove(powervc_instance_id)
         # Check for matching local instance
         matched_instances = self._get_local_instance_by_pvc_id(
             context, powervc_instance_id)
@@ -1137,7 +1136,8 @@ class PowerVCCloudManager(manager.Manager):
             return
 
         # Get the newly added PowerVC instance and add it to the local OS
-        instance = self.driver.get_instance(powervc_instance_id)
+        instance = utils.fetch_pvc_instance(
+            self.pvc_nova_client, powervc_instance_id)
         if not instance:
             LOG.debug('instance %s does not exist in powervc '
                       'side while gets creation event' % powervc_instance_id)
@@ -1146,7 +1146,7 @@ class PowerVCCloudManager(manager.Manager):
         # Filter out the instance in scg that is not specified in conf
         instance_scg_id = instance.get('storage_connectivity_group_id')
         our_scg_id_list = [scg.id for scg
-                           in utills.get_utils().get_our_scg_list()]
+                           in commonutils.get_utils().get_our_scg_list()]
         if instance_scg_id and instance_scg_id not in our_scg_id_list:
             LOG.debug('instance %s does not  in accessible '
                       'scg list' % instance)
@@ -1171,7 +1171,7 @@ class PowerVCCloudManager(manager.Manager):
         """
         powervc_instance_id = self._pre_process_message(payload, event_type)
         # Add the pvc instance to the global deleted list
-        deleted_pvc_ids.add(powervc_instance_id)
+        commonutils.get_utils().add_deleted_pvc(powervc_instance_id)
 
         # Check for matching local instance
         matched_instances = self._get_local_instance_by_pvc_id(
@@ -1210,7 +1210,8 @@ class PowerVCCloudManager(manager.Manager):
                       'instance update event' % powervc_instance_id)
             return
 
-        powervc_instance = self.driver.get_instance(powervc_instance_id)
+        powervc_instance = utils.fetch_pvc_instance(
+            self.pvc_nova_client, powervc_instance_id)
 
         self._update_state(context, local_instance, powervc_instance,
                            powervc_instance_id, event_type)
@@ -1241,21 +1242,13 @@ class PowerVCCloudManager(manager.Manager):
             LOG.warning(_('no valid volume for powervc instance %s') %
                         powervc_instance_id)
             return
-        vol_id = self.cache_volume.get_by_id(powervc_volume_id)
-        if vol_id is None:
-            # get the local volume info and cache it
-            LOG.debug(_("Get the local volume info for powervc volume with id:"
-                        " %s") % powervc_volume_id)
-            local_volume_id = self.driver.\
-                get_local_volume_id_from_pvc_id(powervc_volume_id)
-            LOG.debug(_("Finished to get the local volume info for powervc "
-                        "volume with id: %s") % powervc_volume_id)
-            if local_volume_id is None:
-                # continue to process, just log warning
-                LOG.warning(_('volume does not exist locally for remote '
-                            'volume: %s') % powervc_volume_id)
-            else:
-                self.cache_volume.set_by_id(powervc_volume_id, local_volume_id)
+
+        local_volume_id = commonutils.get_utils().\
+            get_local_volume_id(powervc_volume_id, lazy=False)
+        if local_volume_id is None:
+            # continue to process, just log warning
+            LOG.warning(_('volume does not exist locally for remote '
+                        'volume: %s') % powervc_volume_id)
 
         self.sync_volume_attachment(context, powervc_instance_id,
                                     local_instance)
@@ -1599,7 +1592,7 @@ class PowerVCCloudManager(manager.Manager):
         and its vm_state is not BUILDING, RESIZED,
         DELETED, SOFT_DELETED.
         """
-        if pvc_instance['id'] in deleted_pvc_ids:
+        if commonutils.get_utils().is_deleted_pvc(pvc_instance['id']):
             LOG.info('powervc instance has already been deleted with id %s'
                      ', ignore to process it', pvc_instance['id'])
             return
@@ -1739,14 +1732,16 @@ class PowerVCCloudManager(manager.Manager):
         local_instances = []
         if is_full_sync:
             # Clear the cached deleted pvc instance id list
-            LOG.debug('Clear the deleted pvc id list: %s', deleted_pvc_ids)
-            deleted_pvc_ids.clear()
-            pvc_instances = self.driver.list_instances()
+            LOG.debug('Clear the deleted pvc id list: %s',
+                      commonutils.get_utils().get_deleted_pvc_list())
+            commonutils.get_utils().clear_deleted_pvc_list()
+            pvc_instances = self.pvc_nova_client.manager.list()
             local_instances = self._get_all_local_instances(context)
         else:
             for idx in instance_ids:
                 try:
-                    instance = self.driver.get_instance(idx)
+                    instance = utils.fetch_pvc_instance(
+                        self.pvc_nova_client, idx)
                     pvc_instances.append(instance)
                 except Exception, e:
                     LOG.warning(_('Error occured during get pvc instance \
@@ -1908,7 +1903,7 @@ class PowerVCCloudManager(manager.Manager):
 
         @exception_swallowed
         def sync_flavor():
-            fl = flavorsync.FlavorSync(self.driver,
+            fl = flavorsync.FlavorSync(self.pvc_nova_client,
                                        self.scg_id_list)
             fl.synchronize_flavors(context)
         flavor_call = loopingcall.FixedIntervalLoopingCall(sync_flavor)
@@ -1995,7 +1990,8 @@ class PowerVCCloudManager(manager.Manager):
         if not pvc_id:
             LOG.info("set root_device_name as default: %s " % root_device_name)
             return root_device_name
-        pvc_root_device_name = self.driver.get_pvc_root_device_name(pvc_id)
+        pvc_root_device_name = commonutils.get_utils().\
+            get_pvc_root_device_name(pvc_id)
         if pvc_root_device_name:
             root_device_name = pvc_root_device_name
             LOG.info("set root_device_name as powervc boot volume device "

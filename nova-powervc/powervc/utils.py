@@ -4,6 +4,7 @@
 
 from powervc.nova.driver.compute import constants
 from powervc.common.gettextutils import _
+from novaclient.exceptions import NotFound
 
 import logging
 
@@ -15,6 +16,25 @@ def normalize_host(hostname):
     if not hostname:
         return hostname
     return hostname.replace('.', '_')
+
+
+def get_pvcid_from_local_instance(instance):
+    """
+    Because the data structure of the instance passed by
+    the nova manager is different from normal structure,
+    use this method to get the PowerVC id from the instance
+    metadata
+    """
+    if not isinstance(instance, dict):
+        instance = instance.__dict__
+    metadata = instance.get('metadata')
+    # In some cases, it's _metadata
+    if metadata is None:
+        metadata = instance.get('_metadata')
+    LOG.debug(_("Got metadata: %s") % metadata)
+    pvc_id = get_pvc_id_from_metadata(metadata)
+    LOG.debug(_("Got pvc_id from get_pvc_id_from_metadata: %s") % pvc_id)
+    return pvc_id
 
 
 def get_pvc_id_from_metadata(metadata):
@@ -78,6 +98,37 @@ def get_pvc_id_from_metadata(metadata):
             return None
 
 
+def instance_enabled_defer_placement(instance):
+    """
+    Get instance meta data from instance
+    such as "powervm:defer_placement" : "true"
+    """
+    def str2bool(v):
+        return v.lower() in ('true', u'true')
+
+    # The instance metatdata can be of multiple forms.
+    # Handle cases : dict, list of class InstanceMetadata
+    def get_defer_key_value(meta):
+        if isinstance(meta, dict):
+            for key in meta:
+                defer_val = meta[key]
+                if key == u'powervm:defer_placement':
+                    return str2bool(defer_val)
+        else:
+            for entry in meta:
+                defer_key = entry.get('key', None)
+                defer_val = entry.get('value', None)
+                if defer_key == u'powervm:defer_placement':
+                    return str2bool(defer_val)
+        return False
+
+    isDefer = False
+    meta = instance.get('metadata', None)
+    if meta:
+        isDefer = get_defer_key_value(meta)
+    return isDefer
+
+
 def fill_metadata_dict_by_pvc_instance(metadata, pvc_instance):
     """
     This common method help to get PowerVC unique property into metadata
@@ -113,3 +164,14 @@ def fill_metadata_dict_by_pvc_instance(metadata, pvc_instance):
 
     LOG.debug(_('metadata after filled: %s') % metadata)
     return metadata
+
+
+def fetch_pvc_instance(pvc_nova_client, pvc_id):
+    if not pvc_nova_client:
+        return None
+
+    try:
+        powervc_instance = pvc_nova_client.manager.get(pvc_id)
+    except NotFound:
+        powervc_instance = None
+    return powervc_instance

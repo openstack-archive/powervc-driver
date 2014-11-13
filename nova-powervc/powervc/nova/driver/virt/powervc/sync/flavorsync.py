@@ -17,7 +17,7 @@ LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 
 
-def periodic_flavor_sync(ctx, driver, scg_id_list):
+def periodic_flavor_sync(ctx, pvc_nova_client, scg_id_list):
         """
         Periodically update the flavors from PowerVC.
         A default time of 300 seconds is specified for the refresh interval.
@@ -28,12 +28,12 @@ def periodic_flavor_sync(ctx, driver, scg_id_list):
         if sync_interval is None or sync_interval == 0:
             return
 
-        def flavors_sync(driver, scg_id_list):
-            FlavorSync(driver, scg_id_list).synchronize_flavors(ctx)
+        def flavors_sync(pvc_nova_client, scg_id_list):
+            FlavorSync(pvc_nova_client, scg_id_list).synchronize_flavors(ctx)
             LOG.debug('Flavors synchronization completed')
 
         sync_flavors = loopingcall.FixedIntervalLoopingCall(flavors_sync,
-                                                            driver,
+                                                            pvc_nova_client,
                                                             scg_id_list)
         sync_flavors.start(interval=sync_interval, initial_delay=sync_interval)
 
@@ -44,8 +44,8 @@ class FlavorSync():
     The driver provided interfaces to the PowerVC.
     """
 
-    def __init__(self, driver, scg_id_list):
-        self.driver = driver
+    def __init__(self, nova_client, scg_id_list):
+        self.client = nova_client
         self.prefix = CONF.powervc.flavor_prefix
         self.scg_id_list = scg_id_list
 
@@ -58,7 +58,7 @@ class FlavorSync():
         """
         LOG.info(_("Flavors synchronization starts."))
         # Get all public flavors. By default, detail and public is set.
-        pvcFlavors = self.driver.list_flavors()
+        pvcFlavors = self.client.flavors.list()
         # Sync flavors in list
         for flavor in pvcFlavors:
             LOG.info(_("Flavor:%s") % str(flavor))
@@ -155,7 +155,7 @@ class FlavorSync():
         Checking for scg to be removed when powervc driver supports multiple
         scgs
         """
-        flavor_extraspecs = self.driver.get_flavor_extraspecs(flavor)
+        flavor_extraspecs = flavor.get_keys()
         if flavor_extraspecs:
             scg_key = constants.SCG_KEY
             if scg_key in flavor_extraspecs:

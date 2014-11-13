@@ -48,7 +48,7 @@ class ComputeServiceManager(object):
     managed by the PowerVC service.
     """
 
-    def __init__(self, driver, scg_list, auto_refresh=True):
+    def __init__(self, scg_list, auto_refresh=True):
         """
         Initializes the compute services manager using the given PowerVC driver
 
@@ -61,7 +61,6 @@ class ComputeServiceManager(object):
                              needs to be invoked manually
         """
         self.running = False
-        self.driver = driver
         self.services = {}
         self.manager = CONF.compute_manager
         self.auto_refresh = auto_refresh
@@ -152,10 +151,10 @@ class ComputeServiceManager(object):
                        topic=CONF.compute_topic,
                        manager=CONF.compute_manager,
                        db_allowed=False)
-            local_service.start()
             self.services[host] = local_service
+            if remote_service.state == 'up':
+                local_service.start()
             LOG.info(_('Created nova-compute service for %s') % host)
-            self._sync_service_state(remote_service)
         except messaging.MessagingTimeout as e:
             LOG.debug(_('Failed to launch nova-compute service for %s .') %
                       host)
@@ -188,7 +187,8 @@ class ComputeServiceManager(object):
         to the remote_service.  This method assumes the local
         service already exists.
         """
-        local_service = self.services[remote_service.host]
+        local_service = self.services[
+            utils.normalize_host(remote_service.host)]
         if local_service is None:
             LOG.debug("local service not found for %s" % remote_service.host)
             return
@@ -214,8 +214,9 @@ class ComputeServiceManager(object):
                 traceback.print_exc()
 
     def _get_filtered_remote_services(self):
-        remote_services = self.driver._service._client.\
-            client.services.list(binary="nova-compute")
+        from powervc.nova.driver.virt.powervc.driver import PowerVCDriver
+        remote_services = PowerVCDriver.get_pvc_nova_client().\
+            client.services.list(binary='nova-compute')
         multi_scg_hosts_names = set()
         for old_scg in self.scg_list:
             # Try use the latest one?

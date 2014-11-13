@@ -30,16 +30,18 @@ class TimeLivedCache(object):
         self._lock = threading.Lock()
         self.ttl = ttl
 
-    def _cache_resources(self):
+    def _cache_resources(self, force=False):
         """
         Refreshes the cached values if the cached time has expired,
         or if there are no cached values.
         """
         now = round(time.time())
-        if now - self._last_updated < self.ttl and len(self._cache) != 0:
+        if (not force)\
+                and (now - self._last_updated < self.ttl)\
+                and (len(self._cache) > 0):
             return
         with self._lock:
-            if now - self._last_updated < self.ttl:
+            if (not force) and (now - self._last_updated < self.ttl):
                 return
             self._cache = self._get_cache()
             LOG.debug(_("Updated %s at %s. Last update: %s") %
@@ -82,28 +84,38 @@ class VolumeCache(GreenTimeLivedCache):
     """
     Caches the volumes
     """
-    def __init__(self, driver, ttl=DEFAULT_TTL):
-        assert driver
-        self._driver = driver
+    def __init__(self, local_client, ttl=DEFAULT_TTL/2):
         super(VolumeCache, self).__init__(ttl)
+        self._local_cinder_client = local_client
 
     def _get_resources(self):
-        return self._driver.cache_volume_data()
+        local_volumes = self._local_cinder_client.volumes.list_all_volumes()
 
-    def _get_cache(self):
-        return self._get_resources()
+        local_list = []
+        for local_volume in local_volumes:
+            if not local_volume:
+                continue
+            metadata = local_volume.get('metadata', {})
+            if not metadata:
+                continue
+            if 'pvc:id' in metadata.keys():
+                local_list.append(local_volume)
+        return local_list
 
-    def set_by_id(self, pvc_id, local_id):
-        with self._lock:
-            self._cache[pvc_id] = local_id
+    def _id_for_resource(self, resource):
+        return resource['metadata']['pvc:id']
 
-    def get_by_id(self, pvc_id, default=None):
+    def get_local_id(self, pvc_id, lazy=True, default=None):
         self._cache_resources()
-        if (len(self._cache) != 0):
-            if pvc_id in self._cache:
-                LOG.info(_("Found volume id equals: '%s'" % pvc_id))
-                return self._cache[pvc_id]
-        LOG.info(_("No volume found which equals: '%s'" % pvc_id))
+        if (not lazy) and (pvc_id not in self._cache):
+            # Try again to force update
+            self._cache_resources(force=True)
+        if pvc_id in self._cache:
+            local_id = self._cache[pvc_id].get('id')
+            LOG.debug(_('Found local volume %s matches pvc %s'),
+                      local_id, pvc_id)
+            return local_id
+        LOG.warning(_('No local volume found which equals: %s'), pvc_id)
         return default
 
 
@@ -152,6 +164,53 @@ class SCGCache(GreenTimeLivedCache):
                     return scg
         LOG.info(_("No scg found which equals id: '%s'" % scg_id))
         return default
+
+
+class HypervisorCache(GreenTimeLivedCache):
+    """
+    Caches the hypervisors.
+    """
+    def __init__(self, nova, ttl=DEFAULT_TTL):
+        assert nova
+        self._nova = nova
+        super(HypervisorCache, self).__init__(ttl)
+
+    def __str__(self):
+        return _("PowerVC Hypervisors Cache")
+
+    def _id_for_resource(self, resource):
+        return resource._info['id']
+
+    def _get_resources(self):
+        """
+        Calls the api to get all hypervisors
+        """
+        return self._nova.hypervisors.list()
+
+    def by_host(self, host, default=None):
+        """
+        Returns the hypervisor by host
+        """
+        self._cache_resources()
+        if (len(self._cache) != 0):
+            for hypervisor in self.list():
+                if hypervisor._info['service']['host'] == host:
+                    return hypervisor
+        LOG.info(_("No hypervisor found which equals host: '%s'" % host))
+        return default
+
+    def by_id(self, hypervisor_id, default=None):
+        """
+        Returns the hypervisor by id
+        """
+        self._cache_resources()
+        if (len(self._cache) != 0):
+            if hypervisor_id in self._cache:
+                return self._cache[hypervisor_id]
+        LOG.info(_("No hypervisor found which equals id: '%s'"
+                   % hypervisor_id))
+        return default
+
 
 __lock = threading.Lock()
 __utils = None
@@ -202,9 +261,15 @@ class Utils(object):
             str(constants.SERVICE_TYPES.compute))
         self._cinderclient = factory.POWERVC.new_client(
             str(constants.SERVICE_TYPES.volume))
+        self._localcinderclient = factory.LOCAL.new_client(
+            str(constants.SERVICE_TYPES.volume))
         self._localkeystoneclient = factory.LOCAL.new_client(
             str(constants.SERVICE_TYPES.identity))
         self.scg_cache = self.get_scg_cache(self._novaclient)
+        self.hypervisor_cache = HypervisorCache(self._novaclient)
+        self.local_volume_cache = VolumeCache(self._localcinderclient)
+        self.cached_root_device_map = {}
+        self.deleted_pvc_ids = set()
 
     def get_scg_cache(self, novaclient):
         """
@@ -750,6 +815,37 @@ class Utils(object):
         else:
             return []
 
+    def get_hypervisor(self, host):
+        return self.hypervisor_cache.by_host(host)
+
+    def get_all_hypervisors(self):
+        return self.hypervisor_cache.list()
+
+    def get_hypervisor_by_id(self, hypervisor_id):
+        return self.hypervisor_cache.by_id(hypervisor_id)
+
+    def get_local_volume_id(self, pvc_volume_id, lazy=True):
+        return self.local_volume_cache.get_local_id(pvc_volume_id, lazy=lazy)
+
+    def add_deleted_pvc(self, pvc_id):
+        self.deleted_pvc_ids.add(pvc_id)
+
+    def get_deleted_pvc_list(self):
+        return self.deleted_pvc_ids
+
+    def clear_deleted_pvc_list(self):
+        self.deleted_pvc_ids.clear()
+
+    def remove_deleted_pvc(self, pvc_id):
+        if pvc_id in self.deleted_pvc_ids:
+            self.deleted_pvc_ids.remove(pvc_id)
+            return True
+        else:
+            return False
+
+    def is_deleted_pvc(self, pvc_id):
+        return (pvc_id in self.deleted_pvc_ids)
+
     def get_local_staging_project_id(self):
         """
         Get the local hosting OS staging project Id. If a staging
@@ -830,6 +926,19 @@ class Utils(object):
             return image_scgs_dict
         else:
             return {}
+
+    def get_pvc_root_device_name(self, pvc_id):
+        if pvc_id in self.cached_root_device_map:
+            return self.cached_root_device_map.get(pvc_id)
+        list_all_volumes = self._cinderclient.volumes.list_all_volumes
+        volume_search_opts = {'metadata': {'is_boot_volume': 'True'}}
+        pvcvolumes = list_all_volumes(search_opts=volume_search_opts)
+        for pvcvolume in pvcvolumes:
+            pvcvolume_attachments = pvcvolume.attachments
+            if len(pvcvolume_attachments) > 0:
+                device_name = pvcvolume_attachments[0].get('device')
+                self.cached_root_device_map[pvc_id] = device_name
+        return self.cached_root_device_map.get(pvc_id)
 
 
 def import_relative_module(relative_import_str, import_str):
