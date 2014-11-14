@@ -1383,20 +1383,81 @@ class PowerVCService(object):
         # TODO Loop to get the pvc_id from local db. Return this method until
         # pvc_id got verified in local db, Default timeout is 150s
 
-    def detach_interface(self, context, instance, local_port_id):
+    def detach_interface(self, context, instance, vif):
         """detach a port from a specified vm
         :param context: context for this action
         :param instance: the vm instance that new interface attach to
         :param local_port_id: the local port uuid
+        :param local_address: the local address on local port
         """
-        pvc_port_uuid = self._api.get_pvc_port_uuid(context, local_port_id)
-        LOG.debug(_("pvc_port_uuid to be detach: %s"), pvc_port_uuid)
         # get client server instance from a db instance
         server_with_pvc_id = self._get_server(instance)
-        # get the powervc client server instance from novaclient
         server_client_obj = self._manager.get(server_with_pvc_id)
+
+        local_port_id = vif.get('id')
+        if local_port_id:
+            pvc_port_uuid = self._api.get_pvc_port_uuid(context,
+                                                        local_port_id)
+        else:
+            pvc_port_uuid = None
+
+        if not pvc_port_uuid:
+            # Failed to retrieve powervc port uuid through local port id
+            # This can be caused by local port deleted has already been handled
+            # Try to locate pvc port id by IP address
+            local_network = vif.get('network')
+            if not local_network:
+                LOG.warning(_('Cannot locate detach port id for pvc server %s'
+                              ', because no network found on local VIF %s'),
+                            server_with_pvc_id.id, vif)
+                return
+
+            local_subnets = local_network.get('subnets')
+            if not local_subnets:
+                LOG.warning(_('Cannot locate detach port id for pvc server %s'
+                              ', because no subnets found on local VIF %s'),
+                            server_with_pvc_id.id, vif)
+                return
+
+            candidate_ips = []
+            for local_subnet in local_subnets:
+                local_ips = local_subnet.get('ips')
+                if not local_ips:
+                    continue
+                for local_ip in local_ips:
+                    ip_addr = local_ip.get('address')
+                    if ip_addr:
+                        candidate_ips.append(ip_addr)
+            if not candidate_ips:
+                LOG.warning(_('Cannot locate detach port id for pvc server %s'
+                              ', because no ip address found on local VIF %s'),
+                            server_with_pvc_id.id, vif)
+                return
+
+            pvc_interface_list = server_client_obj.interface_list()
+            for pvc_intf in pvc_interface_list:
+                pvc_fixed_ips = pvc_intf.fixed_ips
+                if not pvc_fixed_ips:
+                    continue
+                pvc_ips = []
+                for pvc_ip in pvc_fixed_ips:
+                    pvc_ips.append(pvc_ip.get('ip_address'))
+                cmp_ips = [x for x in pvc_ips if x not in candidate_ips]
+                if len(cmp_ips) == 0:
+                    pvc_port_uuid = pvc_intf.port_id
+                    break
+            else:
+                LOG.warning(_('Cannot locate detach port id for pvc server %s'
+                              ', because cannot retrieve matched pvc'
+                              'interface for addresses %s from %s'),
+                            server_with_pvc_id.id, candidate_ips,
+                            pvc_interface_list)
+                return
+
+        LOG.debug(_('pvc_port_uuid to be detach: %s'), pvc_port_uuid)
+        # get the powervc client server instance from novaclient
         response = server_client_obj.interface_detach(pvc_port_uuid)
-        LOG.debug(_("detach response: %s"), response)
+        LOG.debug(_('detach response: %s'), response)
         return response
 
     def set_pvc_id_to_port(self, ctx, local_port_id, pvc_port_id):

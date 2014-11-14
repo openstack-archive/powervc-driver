@@ -471,7 +471,6 @@ class PowerVCDriver(driver.ComputeDriver):
     def _get_port_network_ipaddress_from_vif(self, vif):
         """Get port uuid, network uuid, and ip Address from vif
         """
-        local_port_id = ''
         local_network_id = ''
         ipAddress = ''
 
@@ -491,18 +490,15 @@ class PowerVCDriver(driver.ComputeDriver):
         return (local_port_id, local_network_id, ipAddress)
 
     def detach_interface(self, instance, vif):
-        """Detach an interface from the instance.
+        """
+        Detach an interface from the instance.
+        This method is called AFTER nova compute manager deleted local port.
         """
         context = nova.context.get_admin_context()
-        local_port_id = vif.get('id')
-        LOG.debug(_("Local port uuid: %s") % local_port_id)
-        if not local_port_id:
-            LOG.error(_("no port id found to detach the interface."))
-            return
         # call service to detach interface
         self._service.detach_interface(context,
                                        instance,
-                                       local_port_id)
+                                       vif)
 
     def migrate_disk_and_power_off(self, context, instance, dest,
                                    instance_type, network_info,
