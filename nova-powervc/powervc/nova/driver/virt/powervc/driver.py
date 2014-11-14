@@ -449,6 +449,8 @@ class PowerVCDriver(driver.ComputeDriver):
     def attach_interface(self, instance, image_meta, vif):
         """Attach an interface to the instance.
         """
+        LOG.debug(_('enter PowerVC driver attach_interface for instance %s'
+                    ' with vif info as %s'), instance, vif)
         context = nova.context.get_admin_context()
         try:
             server_id = instance.get('uuid')
@@ -467,11 +469,12 @@ class PowerVCDriver(driver.ComputeDriver):
                                        port_id,
                                        network_id,
                                        ipAddress)
+        LOG.debug(_('exit PowerVC driver attach_interface for instance %s'
+                    ' with vif info as %s'), instance, vif)
 
     def _get_port_network_ipaddress_from_vif(self, vif):
         """Get port uuid, network uuid, and ip Address from vif
         """
-        local_port_id = ''
         local_network_id = ''
         ipAddress = ''
 
@@ -491,18 +494,19 @@ class PowerVCDriver(driver.ComputeDriver):
         return (local_port_id, local_network_id, ipAddress)
 
     def detach_interface(self, instance, vif):
-        """Detach an interface from the instance.
         """
+        Detach an interface from the instance.
+        This method is called AFTER nova compute manager deleted local port.
+        """
+        LOG.debug(_('enter PowerVC driver detach_interface for instance %s'
+                    ' with vif info as %s'), instance, vif)
         context = nova.context.get_admin_context()
-        local_port_id = vif.get('id')
-        LOG.debug(_("Local port uuid: %s") % local_port_id)
-        if not local_port_id:
-            LOG.error(_("no port id found to detach the interface."))
-            return
         # call service to detach interface
         self._service.detach_interface(context,
                                        instance,
-                                       local_port_id)
+                                       vif)
+        LOG.debug(_('exit PowerVC driver detach_interface for instance %s'
+                    ' with vif info as %s'), instance, vif)
 
     def migrate_disk_and_power_off(self, context, instance, dest,
                                    instance_type, network_info,
