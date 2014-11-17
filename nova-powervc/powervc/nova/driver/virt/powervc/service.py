@@ -7,6 +7,7 @@ from nova.image import glance
 from nova.openstack.common import loopingcall
 from nova.openstack.common import log as logging
 from nova.compute import vm_states
+from powervc.nova.common.exception import LiveMigrationException
 from powervc.nova.driver.compute import constants
 from powervc.nova.driver.compute import manager as pvc_manager
 from powervc.nova.driver.virt.powervc.rpcapi import NetworkAPI
@@ -1196,12 +1197,27 @@ class PowerVCService(object):
             pvc_server = self._manager.get(server)
             pvc_server_dict = pvc_server.__dict__
             current_host = pvc_server_dict['OS-EXT-SRV-ATTR:host']
-            LOG.debug(_('Original Host %s, Current Host %s') %
-                       (orig_host, current_host))
+            pvc_task_state = pvc_server_dict.get('OS-EXT-STS:task_state')
+            LOG.debug(_('Original Host %s, Current Host %s, powervc instance '
+                        'state is %s, task_state is %s') %
+                      (orig_host, current_host, pvc_server.status,
+                       pvc_task_state))
             if (pvc_server.status != pvc_vm_states.MIGRATING and
                     current_host != orig_host):
                 LOG.info(_("Instance %s completed migration.") % pvc_server.id)
                 raise loopingcall.LoopingCallDone(True)
+            if (pvc_server.status == pvc_vm_states.ACTIVE and
+                pvc_task_state == None and current_host == orig_host):
+                LOG.error('Instance %s failed to migrate to another host, '
+                          'please check with PowerVC console error message or '
+                          'log file',pvc_server.id)
+                raise LiveMigrationException(pvc_server.id)
+            if (pvc_server.status == pvc_vm_states.ERROR and
+                pvc_task_state == None and current_host == orig_host):
+                LOG.error('Instance %s failed to migrate to another host, '
+                          'please check with PowerVC console error message or '
+                          'log file',pvc_server.id)
+                raise LiveMigrationException(pvc_server.id)
 
         timer = loopingcall.FixedIntervalLoopingCall(_wait_for_live_migration)
         return timer.start(self.longrun_loop_interval * 3,
