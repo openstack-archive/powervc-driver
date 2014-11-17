@@ -49,6 +49,8 @@ LOG = logging.getLogger(__name__)
 
 CONF = cfg.CONF
 
+# store the deleted powervc instance uuids
+deleted_pvc_ids = set()
 
 class PowerVCCloudManager(manager.Manager):
 
@@ -1119,7 +1121,10 @@ class PowerVCCloudManager(manager.Manager):
         :param: payload The AMQP message sent from OpenStack (dictionary)
         """
         powervc_instance_id = self._pre_process_message(payload, event_type)
-
+        if powervc_instance_id in deleted_pvc_ids:
+            LOG.warning('Already deleted powervc instance %s is recreated, '
+                        'remove it from the global list', powervc_instance_id)
+            deleted_pvc_ids.remove(powervc_instance_id)
         # Check for matching local instance
         matched_instances = self._get_local_instance_by_pvc_id(
             context, powervc_instance_id)
@@ -1164,6 +1169,8 @@ class PowerVCCloudManager(manager.Manager):
         :param: payload The AMQP message sent from OpenStack (dictionary)
         """
         powervc_instance_id = self._pre_process_message(payload, event_type)
+        # Add the pvc instance to the global deleted list
+        deleted_pvc_ids.add(powervc_instance_id)
 
         # Check for matching local instance
         matched_instances = self._get_local_instance_by_pvc_id(
@@ -1591,6 +1598,10 @@ class PowerVCCloudManager(manager.Manager):
         and its vm_state is not BUILDING, RESIZED,
         DELETED, SOFT_DELETED.
         """
+        if pvc_instance['id'] in deleted_pvc_ids:
+            LOG.info('powervc instance has already been deleted with id %s'
+                     ', ignore to process it', pvc_instance['id'])
+            return
         pvc_task_state = pvc_instance['OS-EXT-STS:task_state']
         pvc_vm_state = pvc_instance['OS-EXT-STS:vm_state']
         if (
@@ -1726,6 +1737,9 @@ class PowerVCCloudManager(manager.Manager):
         pvc_instances = []
         local_instances = []
         if is_full_sync:
+            # Clear the cached deleted pvc instance id list
+            LOG.debug('Clear the deleted pvc id list: %s', deleted_pvc_ids)
+            deleted_pvc_ids.clear()
             pvc_instances = self.driver.list_instances()
             local_instances = self._get_all_local_instances(context)
         else:
