@@ -8,6 +8,7 @@ from nova.openstack.common import loopingcall
 from nova.openstack.common import log as logging
 from nova.compute import vm_states
 from powervc.nova.driver.compute import constants
+from powervc.nova.driver.compute import manager as pvc_manager
 from powervc.nova.driver.virt.powervc.rpcapi import NetworkAPI
 from powervc.nova.driver.virt.powervc import pvc_vm_states
 from nova import db
@@ -861,8 +862,13 @@ class PowerVCService(object):
                 raise exception.InstanceTerminationFailure(server)
 
         timer = loopingcall.FixedIntervalLoopingCall(_wait_for_destroy)
-        return timer.start(self.longrun_loop_interval * 2,
-                           self.longrun_initial_delay * 2).wait()
+        timer_result = timer.start(self.longrun_loop_interval * 2,
+                                   self.longrun_initial_delay * 2).wait()
+        # Add the pvc instance to the global deleted list
+        pvc_manager.deleted_pvc_ids.add(server.id)
+        LOG.debug('Added the deleted powervc instance id % to the glocal'
+                  'deletion list', server.id)
+        return timer_result
 
     def set_device_id_on_port_by_pvc_instance_uuid(self,
                                                    ctx,
