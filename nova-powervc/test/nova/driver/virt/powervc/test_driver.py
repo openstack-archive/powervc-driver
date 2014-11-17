@@ -478,33 +478,80 @@ class PowerVCDriverTestCase(test.NoDBTestCase):
         instance.interface_detach.\
             assert_called_once_with('powervc-port-id-77777777')
 
-    def test_detach_interface_with_bad_request_exception_raised(self):
+    def test_detach_interface_with_no_local_id_match(self):
         instance = MagicMock()
         detach_instance = pvcIns
-        detach_instance.interface_detach = \
-            MagicMock(side_effect=exceptions.BadRequest("Attach failed"))
+        def detach_response(pvc_id):
+            if pvc_id == 'powervc-port-id-77774'\
+                    or pvc_id == 'powervc-port-id-77775':
+                return
+            else:
+                
+        detach_instance.interface_detach = MagicMock(
+            side_effect=detach_response
+        )
+        detach_instance.interface_list = MagicMock(
+            return_value=self._get_interface_list()
+        )
 
-        vif = self._get_vif_instance()
         pvc_driver = self._driver
         pvc_driver._service._api = MagicMock()
-        pvc_driver._service._manager.get = \
+        pvc_driver._service._manager.get =\
             MagicMock(return_value=detach_instance)
-        pvc_driver._service._api.get_pvc_port_uuid = \
-            MagicMock(return_value='')
-        self.assertRaises(exceptions.BadRequest,
-                          pvc_driver.detach_interface,
-                          instance,
-                          vif)
+        pvc_driver._service._api.get_pvc_port_uuid =\
+            MagicMock(return_value=None)
+        pvc_driver.detach_interface(instance,
+                                    self._get_vif_instance())
+        with patch('LOG.warning',
+                   new_callable=lambda: raise exceptions.NotFound()):
+            self.assertRaises(exceptions.NotFound,
+                              pvc_driver.detach_interface,
+                              instance,
+                              self._get_vif_instance(badvif=True))
 
-    def _get_vif_instance(self):
-        vif = {}
-        vif['id'] = "local-port-id-12345678"
-        network = {}
-        network['id'] = "local-network-id-87654321"
-        subnets = [{'ips': [{'address': '192.168.1.4'}]}]
-        network['subnets'] = subnets
-        vif['network'] = network
-        return vif
+    def _get_interface_list(self):
+        class FakeInterface(object):
+
+            def __init__(self, index):
+                self._info = {
+                    'fixed_ips': [
+                        {'ip_address': '192.168.1.%d' % index}
+                    ],
+                    'port_id': 'powervc-port-id-7777%d' % index
+                }
+
+        return [FakeInterface(4), FakeInterface(5)]
+
+    def _get_vif_instance(self, badvif=False):
+        class FakeVIF(object):
+
+            def __init__(self, index):
+                self.data = {
+                    'id': 'local-port-id-12345678',
+                    'network': {
+                        'id': 'local-network-id-87654321',
+                        'subnets': [
+                            {'ips': [
+                                {'address': '192.168.1.%d' % index}
+                            ]}
+                        ]
+                    }
+                }
+
+            def fixed_ips(self):
+                return [fixed_ip for subnet in self.data['network']['subnets']
+                        for fixed_ip in subnet['ips']]
+
+            def get(self, attr):
+                if attr in self.data:
+                    return self.data.get(attr)
+                else:
+                    return None
+
+        if badvif:
+            return FakeVIF(3)
+        else:
+            return FakeVIF(4)
 
     def tearDown(self):
         super(PowerVCDriverTestCase, self).tearDown()
