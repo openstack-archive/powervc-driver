@@ -10,6 +10,7 @@ class BlockMigrationException(exception.NovaException):
         message = _("PowerVC does not support block migration.")
         super(BlockMigrationException, self).__init__(message=message)
 
+
 class LiveMigrationException(exception.NovaException):
     """User attempted to perform live migration with block migration."""
     def __init__(self, uuid):

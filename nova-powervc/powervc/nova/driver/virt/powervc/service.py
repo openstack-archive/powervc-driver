@@ -1206,12 +1206,12 @@ class PowerVCService(object):
                     current_host != orig_host):
                 LOG.info(_("Instance %s completed migration.") % pvc_server.id)
                 raise loopingcall.LoopingCallDone(True)
-            if ((pvc_server.status == pvc_vm_states.ACTIVE or
-                 pvc_server.status == pvc_vm_states.ERROR) and
-                pvc_task_state == None and current_host == orig_host):
+            if pvc_task_state is None and current_host == orig_host and\
+                pvc_server.status in (pvc_vm_states.ACTIVE,
+                                      pvc_vm_states.ERROR):
                 LOG.error('Instance %s failed to migrate to another host, '
                           'please check with PowerVC console error message or '
-                          'log file',pvc_server.id)
+                          'log file', pvc_server.id)
                 raise LiveMigrationException(pvc_server.id)
 
         timer = loopingcall.FixedIntervalLoopingCall(_wait_for_live_migration)

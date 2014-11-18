@@ -52,6 +52,7 @@ CONF = cfg.CONF
 # store the deleted powervc instance uuids
 deleted_pvc_ids = set()
 
+
 class PowerVCCloudManager(manager.Manager):
 
     def __init__(self, compute_driver=None, *args, **kwargs):
