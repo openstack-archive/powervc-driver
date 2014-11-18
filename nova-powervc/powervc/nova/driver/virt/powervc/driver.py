@@ -874,6 +874,8 @@ class PowerVCDriver(driver.ComputeDriver):
         isDefer = self._check_defer_placement(instance_ref)
         if not isDefer:
             valid_hosts = self._service.get_valid_destinations(instance_ref)
+            LOG.debug('compute manager host is %s, valid destination hosts '
+                      'are %s', CONF.host, valid_hosts)
             for key in valid_hosts:
                 if key == CONF.host:
                     return dst_compute_info

@@ -16,6 +16,7 @@ import unittest
 from powervc import utils as powervc_utils
 sys.modules['powervc.common.client'] = mock.MagicMock()
 from mock import MagicMock
+from powervc.nova.common.exception import LiveMigrationException
 from powervc.nova.driver.virt.powervc.service import PowerVCService
 from powervc.nova.driver.virt.powervc.driver import PowerVCDriver
 from powervc.nova.driver.virt.powervc.driver import CONF as driver_conf
@@ -330,6 +331,22 @@ class PowerVCDriverTestCase(test.NoDBTestCase):
         post_method = MagicMock()
         service.live_migrate = MagicMock(side_effect=Exception("Error"))
         self.assertRaises(Exception, self._driver.live_migration,
+                          None, os_instance, dest_compute_info,
+                          post_method, recover_method)
+        recover_method.assert_called_once_with(None, os_instance,
+                                               dest_compute_info, False, None)
+
+    def test_live_migrate_fails_without_moving(self):
+        os_instance = FakeOSInstance()
+        pvc_instance = FakePVCInstance()
+        service = self._driver._service
+        service.get_instance = MagicMock(return_value=pvc_instance)
+        dest_compute_info = FakeHostStat().stat
+        os_instance.os_instance['metadata']['powervm:defer_placement'] = \
+            'false'
+        recover_method = MagicMock()
+        post_method = MagicMock()
+        self.assertRaises(LiveMigrationException, self._driver.live_migration,
                           None, os_instance, dest_compute_info,
                           post_method, recover_method)
         recover_method.assert_called_once_with(None, os_instance,
