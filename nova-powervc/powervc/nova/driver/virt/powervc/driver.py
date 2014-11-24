@@ -293,15 +293,10 @@ class PowerVCDriver(driver.ComputeDriver):
         """
         This method does the following things when exception thrown in spawn:
         1. log powervc side error message to hosting os fault property
-        2. remove pvc_id from local vm
-        3. destroy vm in powerVC with pvc_id set in instance
+        2. destroy vm in powerVC with pvc_id set in instance
+        3. remove pvc_id from local vm
         """
         LOG.warning("Created instance failed: %s" % message)
-        # In this time, powervc uuid is not saved in instance metadata, get
-        # it from db then update the instance and call destroy()
-        # remove pvc_id before destroy to avoid instance synchronization
-        meta = db.instance_metadata_get(context, instance['uuid'])
-        pvc_id = meta.get(constants.PVC_ID, '')
 
         # To log powervc side error message to hosting os fault property,
         # raise an InstanceDeployFailure with powervc error message set
@@ -314,19 +309,23 @@ class PowerVCDriver(driver.ComputeDriver):
         # 1. Set scheduler_max_attempts=1 in /etc/nova/nova.conf
         # 2. Restart openstack-nova-scheduler service
 
-        # remove pvc_id
-        if constants.PVC_ID in meta.keys():
-            del(meta[constants.PVC_ID])
-        update_properties = {'metadata': meta}
-        db.instance_update(context, instance['uuid'], update_properties)
-
         # destory vm in pvc side
-        instance['metadata'] = {constants.PVC_ID: pvc_id}
         try:
             self.destroy(None, instance, None)
         except Exception as e:
             # Ignore the exception in destroy()
             LOG.warning("Destroy instance throw exception: %s" % e.message)
+        meta = instance.get('metadata')
+        if not meta:
+            LOG.warning("No metadata for instance: %s", instance)
+            return
+        # remove pvc_id
+        if constants.PVC_ID in meta.keys():
+            del(meta[constants.PVC_ID])
+        instance['metadata'] = meta
+        instance.save()
+        LOG.debug('Saved instance with clearing pvc_id in metadata during'
+                  'spawn failure: %s', instance)
 
     def destroy(self, context, instance, network_info, block_device_info=None,
                 destroy_disks=True):
