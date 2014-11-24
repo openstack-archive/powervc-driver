@@ -621,23 +621,26 @@ class PowerVCService(object):
         """
         created_instance = created_server.__dict__
         # get original metadata from DB and insert the pvc_id
-        meta = db.instance_metadata_get(context, orig_instance['uuid'])
-        meta.update(pvc_id=created_instance['id'])
+        meta = orig_instance.get('metadata')
         # update powervc specified metadata to hosting os vm instance
         powervc_meta = created_instance.get('metadata')
         if powervc_meta:
             meta.update(powervc_meta)
-        update_properties = {
-            'node': created_instance.get(
-                'OS-EXT-SRV-ATTR:hypervisor_hostname', None),
-            'host': created_instance.get('OS-EXT-SRV-ATTR:host', None),
-            'metadata': meta,
-            'architecture': constants.PPC64,
-            'power_state': created_instance['OS-EXT-STS:power_state']}
-        orig_instance['node'] = update_properties['node']
-        orig_instance['host'] = update_properties['host']
-        db.instance_update(context, orig_instance['uuid'],
-                           update_properties)
+        # Always override pvc_id with created_server id regardless even if
+        # PowerVC instance has such pvc_id in metadata
+        meta.update(pvc_id=created_instance['id'])
+        node = created_instance.get('OS-EXT-SRV-ATTR:hypervisor_hostname',
+                                    None)
+        host = created_instance.get('OS-EXT-SRV-ATTR:host', None)
+        powerstate = created_instance['OS-EXT-STS:power_state']
+        orig_instance['node'] = node
+        orig_instance['host'] = host
+        orig_instance['architecture'] = constants.PPC64
+        orig_instance['power_state'] = powerstate
+        orig_instance['metadata'] = meta
+        orig_instance.save()
+        LOG.debug('Saved instance after created PowerVC instance: %s',
+                  orig_instance)
 
     def spawn(self, context, instance, injected_files, name, imageUUID,
               flavorDict, nics, hypervisorID, availability_zone, isDefer):
