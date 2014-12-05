@@ -2,8 +2,9 @@
 
 from novaclient import base
 from novaclient import exceptions
-from powervc.common.gettextutils import _
 from novaclient import utils
+from novaclient.openstack.common import cliutils
+from powervc.common.gettextutils import _
 
 
 class HostMaintenanceResource(base.Resource):
@@ -41,16 +42,16 @@ class HostMaintenanceManager(base.Manager):
         return obj
 
 
-@utils.arg('host',
+@cliutils.arg('host',
            metavar='<host>',
            help='Name of a host.')
-@utils.arg('--set-status', choices=["enable", "disable"],
+@cliutils.arg('--set-status', choices=["enable", "disable"],
            metavar="<enable|disable>",
            help='To enable or disable the host maintenance mode.')
-@utils.arg('--migrate', choices=["active-only", "all", "none"],
+@cliutils.arg('--migrate', choices=["active-only", "all", "none"],
            metavar="<all|active-only|none>",
            help='Which kinds of instances to migrate.')
-@utils.arg('--target-host',
+@cliutils.arg('--target-host',
            metavar='<target host>',
            help='Which service host instances would be migrated to.')
 def do_host_maintenance(cs, args):
