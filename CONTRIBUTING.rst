@@ -11,7 +11,7 @@ use Launchpad for bugs_ and blueprints_ management, and OpenStack Gerrit for
 the integration approval, you can add it into your reviewer list, although all
 members of this task force will monitor the queue and provide help.
 
-.. _OpenStack: https://wiki.openstack.org/wiki/GerritWorkflow
+.. _OpenStack: http://docs.openstack.org/infra/manual/developers.html#development-workflow
 .. _bugs: https://bugs.launchpad.net/powervc-driver
 .. _blueprints: https://blueprints.launchpad.net/powervc-driver
 .. _`code review`: https://review.openstack.org/#/q/powervc-driver,n,z
