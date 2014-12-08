@@ -1,5 +1,5 @@
 import unittest
-import mox
+import mock
 
 import neutron.db.api as db_api
 from powervc.neutron.api.powervc_rpc import PVCRpcCallbacks
@@ -30,17 +30,9 @@ def dummy():
 class TestSyncInstance(unittest.TestCase):
 
         def setUp(self):
-            # Disable DB init.
-            db_api.get_session = dummy
-            db_api.configure_db = dummy
-            self._db = powervc_db_v2.PowerVCAgentDB()
+            powervc_db_v2.PowerVCAgentDB = mock.MagicMock()
             self._callback = PVCRpcCallbacks(self)
-            # Replace with the dummy DB.
-            self._callback.db = self._db
-            self.moxer = mox.Mox()
-
-        def get_db_api(self):
-            return self._db
+            self._callback.db = mock.MagicMock()
 
         def tearDown(self):
             pass
@@ -59,15 +51,8 @@ class TestSyncInstance(unittest.TestCase):
 
             context = FakeCTX()
 
-            self.moxer.StubOutWithMock(self._db, "get_network")
-            self._db.get_network(local_id=id_in).AndReturn(id_out)
-
-            self.moxer.ReplayAll()
-
+            self._callback.db.get_network = mock.MagicMock(return_value=id_out)
             rtn = self._callback.get_pvc_network_uuid(context, id_in)
-
-            self.moxer.VerifyAll()
-            self.moxer.UnsetStubs()
 
             print str(rtn)
             return rtn
