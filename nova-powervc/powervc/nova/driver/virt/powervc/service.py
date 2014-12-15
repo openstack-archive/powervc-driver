@@ -427,38 +427,6 @@ class PowerVCService(object):
             LOG.warning(_("VolumeId missing in detaching volume"))
         self._volumes.delete_server_volume(server_id, volume_id)
 
-        def _wait_for_detach(server_id, volume_id):
-            """
-            This method is used to call at an interval until the volume is
-            detached from the server.
-            """
-            try:
-                volume = self._volumes.get_server_volume(server_id, volume_id)
-            except exceptions.NotFound:
-                LOG.info(
-                    _("Detach the volume on instance %s successfully.")
-                    % server_id)
-                raise loopingcall.LoopingCallDone(True)
-
-            if volume:
-                if self.try_time > self.max_tries:
-                    LOG.info(_("Volume %s failed to detach.") % volume_id)
-                    # There is no VolumeDetachFailed like exception defined
-                    raise loopingcall.LoopingCallDone(True)
-                else:
-                    LOG.debug(_("Looping call to check detach of volume %s.")
-                              % volume_id)
-                    self.try_time += 1
-            else:
-                raise loopingcall.LoopingCallDone(True)
-
-        self.try_time = 0
-        timer = loopingcall.FixedIntervalLoopingCall(_wait_for_detach,
-                                                     server_id,
-                                                     volume_id)
-        return timer.start(self.longrun_loop_interval,
-                           self.longrun_initial_delay).wait()
-
     def power_off(self, instance):
         """Power off the specified instance."""
         server_instance = self._get_server(instance)
@@ -1056,15 +1024,6 @@ class PowerVCService(object):
                                            volume_id,
                                            mountpoint)
 
-        self.try_time = 0
-        timer = loopingcall.\
-            FixedIntervalLoopingCall(self._check_attachment_of_instance,
-                                     server_id,
-                                     volume_id)
-
-        return timer.start(self.longrun_loop_interval,
-                           self.longrun_initial_delay).wait()
-
     def list_attachments_of_instance(self, server_id):
         """
             Lists the volume attachments for the specified server.
@@ -1073,30 +1032,6 @@ class PowerVCService(object):
         response = self._volumes.get_server_volumes(server_id)
 
         return response
-
-    def _check_attachment_of_instance(self, server_id, volume_id):
-        """
-            Check whether the specified volume has been attached to
-            the specified instance.
-        """
-        self.try_time = self.try_time + 1
-        try:
-            attachments = self.list_attachments_of_instance(server_id)
-        except exceptions:
-            LOG.warning(_("Fail to get the attachments of the server:\
-                            VM %s.") % server_id)
-            raise exceptions.BadRequest
-
-        for attachment in attachments:
-            get_volume_id = getattr(attachment, 'volumeId', '')
-
-            if get_volume_id == volume_id:
-                LOG.debug(_("The attach_volume operation of the server:\
-                            VM %s is completed") % server_id)
-                raise loopingcall.LoopingCallDone(True)
-
-        if self.try_time > self.max_tries:
-            raise exception.VolumeUnattached
 
     def _get_pvc_volume_id(self, local_id):
         """

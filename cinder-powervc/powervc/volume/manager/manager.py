@@ -938,6 +938,19 @@ class PowerVCCinderManager(service.Service):
 
         return found
 
+    def _is_intermediate_state(self, local_volume=None, pvc_volume=None):
+        intermediate_statuses = [constants.STATUS_ATTACHING,
+                                 constants.STATUS_DETACHING]
+        if local_volume:
+            local_volume_state = local_volume.get('status')
+            if local_volume_state in intermediate_statuses:
+                return True
+        if pvc_volume:
+            pvc_volume_state = pvc_volume.get('status')
+            if pvc_volume_state in intermediate_statuses:
+                return True
+        return False
+
     def _sync_existing_volume(self, context, local_volume, pvc_volume):
         ret = False
         if local_volume is None or pvc_volume is None:
@@ -948,6 +961,12 @@ class PowerVCCinderManager(service.Service):
             LOG.warning(_("Staging user or project invalid."
                           " Skipping volume sync."))
             return ret
+
+        if self._is_intermediate_state(local_volume, pvc_volume):
+            LOG.info('volume can not be synced as local or pvc volume state in'
+                     'intermediate state: %s, '
+                     '%s' % (local_volume.get('status'), pvc_volume))
+            return
 
         values = self._get_values_from_volume(context,
                                               pvc_volume,
@@ -992,6 +1011,10 @@ class PowerVCCinderManager(service.Service):
             LOG.debug("Volume is None, cannot insert it")
             return
 
+        if self._is_intermediate_state(pvc_volume=volume):
+            LOG.info('pvc volume is in a intermediate status, ignore to insert:'
+                     ' %s' % volume)
+            return
         volume_info = volume
         volume_type = volume_info.get('volume_type')
         volume_display_name = volume_info.get('display_name')

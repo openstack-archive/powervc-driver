@@ -1,5 +1,5 @@
 from __future__ import absolute_import
-# Copyright 2013 IBM Corp.
+# Copyright 2013, 2014 IBM Corp.
 
 import httplib
 
@@ -270,3 +270,62 @@ class PowerVCService(object):
 
     def list_storage_providers(self):
         return PowerVCService._client.storage_providers.list()
+
+    def attach_volume(self, context, volume, instance_uuid, host_name,
+                      mountpoint):
+        """Callback for volume attached to instance or host."""
+        # wait for volume to be attached, the volume-attach operation is done
+        # in nova
+        pvc_volume_id = None
+        for metaDataItem in volume.volume_metadata:
+            if metaDataItem.key == constants.LOCAL_PVC_PREFIX + 'id':
+                pvc_volume_id = metaDataItem.value
+                break
+        else:
+            LOG.warning('Fail to get pvc_id %s' % volume_id)
+            raise exceptions.BadRequest
+
+        LOG.debug('wait until PVC volume %s status to in-use', pvc_volume_id)
+        FILPC = loopingcall.FixedIntervalLoopingCall
+        timer = FILPC(self._wait_for_state_change,
+                      pvc_volume_id,
+                      constants.STATUS_AVAILABLE,
+                      constants.STATUS_INUSE,
+                      constants.STATUS_ATTACHING)
+
+        try:
+            timer.start(interval=10).wait()
+        except:
+            LOG.error("volume %s attaching failed, ", volume.id)
+            # when attached failed raise exception
+            raise exception.CinderException('Volume %s attaching failed',
+                                            volume.id)
+
+    def detach_volume(self, context, volume):
+        """Callback for volume detach to instance or host."""
+        # wait for volume to be detached, the volume-detach operation is done
+        # in nova
+        pvc_volume_id = None
+        for metaDataItem in volume.volume_metadata:
+            if metaDataItem.key == constants.LOCAL_PVC_PREFIX + 'id':
+                pvc_volume_id = metaDataItem.value
+                break
+        else:
+            LOG.warning('Fail to get pvc_id %s' % volume_id)
+            raise exceptions.BadRequest
+
+        LOG.debug('wait until PVC volume %s status to available', pvc_volume_id)
+        FILPC = loopingcall.FixedIntervalLoopingCall
+        timer = FILPC(self._wait_for_state_change,
+                      pvc_volume_id,
+                      constants.STATUS_INUSE,
+                      constants.STATUS_AVAILABLE,
+                      constants.STATUS_DETACHING)
+
+        try:
+            timer.start(interval=10).wait()
+        except:
+            LOG.error("volume %s detaching failed, ", volume.id)
+            # when attached failed raise exception
+            raise exception.CinderException('Volume %s detaching failed',
+                                            volume.id)

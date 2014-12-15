@@ -1,5 +1,5 @@
 from __future__ import absolute_import
-# Copyright 2013 IBM Corp.
+# Copyright 2013, 2014 IBM Corp.
 import logging
 import sys
 
@@ -301,3 +301,16 @@ class PowerVCDriver(VolumeDriver):
             return name
         else:
             return volume.id
+
+    def attach_volume(self, context, volume, instance_uuid, host_name,
+                      mountpoint):
+        """Callback for volume attached to instance or host."""
+        # wait for volume to be attached
+        self._service.attach_volume(context, volume, instance_uuid, host_name,
+                                    mountpoint)
+
+    def detach_volume(self, context, volume):
+        """Callback for volume detached."""
+        # wait for volume to be detached
+        self._service.detach_volume(context, volume)
+
