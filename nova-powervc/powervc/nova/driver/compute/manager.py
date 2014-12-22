@@ -748,8 +748,20 @@ class PowerVCCloudManager(manager.Manager):
             if rtn is not None:
                 break
 
+        """TODO: This fix doesn't handle the case that user delete the image
+        from PowerVC, and such image has associated VM in PowerVC, then those
+        PowerVC instances synced to PowerVC will still associated a default
+        image id with that instance.
+        """
         if rtn is None:
-            rtn = self.get_default_image(ctx)
+            if db_instance is not None:
+                LOG.warning("No local image found: %s, skip updating image_ref"
+                            % db_instance.get('image_ref'))
+                local_image = {}
+                local_image['id'] = db_instance.get('image_ref')
+                return local_image
+            else:
+                rtn = self.get_default_image(ctx)
 
         return rtn
 
