@@ -749,7 +749,14 @@ class PowerVCCloudManager(manager.Manager):
                 break
 
         if rtn is None:
-            rtn = self.get_default_image(ctx)
+            if db_instance is not None:
+                LOG.warning("No local image found: %s, skip updating image_ref"
+                            % db_instance.get('image_ref'))
+                local_image = {}
+                local_image['id'] = db_instance.get('image_ref')
+                return local_image
+            else:
+                rtn = self.get_default_image(ctx)
 
         return rtn
 
