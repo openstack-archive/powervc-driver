@@ -207,7 +207,8 @@ class PowerVCDriver(driver.ComputeDriver):
         return self._service.get_flavor_extraspecs(flavor)
 
     def spawn(self, context, instance, image_meta, injected_files,
-              admin_password, network_info=None, block_device_info=None):
+              admin_password, network_info=None, block_device_info=None,
+              **kwargs):
         """
         Create a new instance/VM/domain on the virtualization platform.
 
