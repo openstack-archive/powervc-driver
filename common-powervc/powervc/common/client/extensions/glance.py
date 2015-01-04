@@ -17,13 +17,14 @@ class Extended_V2_Client(object):
     :param dict client_info : The client info dict to init a glance v2 client
     """
     def __init__(self, client_info):
-        endpoint = client_info['endpoint']
+        endpoint = utils.strip_version(client_info['endpoint'])
         kwargs = {'cacert': client_info['cacert'],
                   'insecure': client_info['insecure'],
                   'token': client_info['token']}
 
-        self.http_client = http.HTTPClient(utils.strip_version(endpoint),
-                                           **kwargs)
+        if isinstance(endpoint, tuple):
+            endpoint = endpoint[0]
+        self.http_client = http.HTTPClient(endpoint, **kwargs)
         self.schemas = schemas.Controller(self.http_client)
         self.images = images.Controller(self.http_client, self.schemas)
         self.image_tags = image_tags.Controller(self.http_client, self.schemas)
