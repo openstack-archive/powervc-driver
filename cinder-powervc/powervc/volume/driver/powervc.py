@@ -313,4 +313,3 @@ class PowerVCDriver(VolumeDriver):
         """Callback for volume detached."""
         # wait for volume to be detached
         self._service.detach_volume(context, volume)
-

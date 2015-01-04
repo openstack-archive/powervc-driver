@@ -1012,8 +1012,8 @@ class PowerVCCinderManager(service.Service):
             return
 
         if self._is_intermediate_state(pvc_volume=volume):
-            LOG.info('pvc volume is in a intermediate status, ignore to insert:'
-                     ' %s' % volume)
+            LOG.info('pvc volume is in a intermediate status, ignore to insert'
+                     ': %s' % volume)
             return
         volume_info = volume
         volume_type = volume_info.get('volume_type')

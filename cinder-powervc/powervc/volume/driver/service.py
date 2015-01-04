@@ -314,7 +314,8 @@ class PowerVCService(object):
             LOG.warning('Fail to get pvc_id %s' % volume_id)
             raise exceptions.BadRequest
 
-        LOG.debug('wait until PVC volume %s status to available', pvc_volume_id)
+        LOG.debug('wait until PVC volume %s status to available',
+                  pvc_volume_id)
         FILPC = loopingcall.FixedIntervalLoopingCall
         timer = FILPC(self._wait_for_state_change,
                       pvc_volume_id,
