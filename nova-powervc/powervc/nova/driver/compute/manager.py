@@ -304,7 +304,9 @@ class PowerVCCloudManager(manager.Manager):
         # the hosting OS and PowerVC.
         base_options['display_name'] = local_instance.get('display_name')
 
-        self.compute_api.update(context, local_instance, **base_options)
+        inst = instance_obj.Instance.get_by_uuid(context,
+                                                 local_instance.get('uuid'))
+        self.compute_api.update(context, inst, **base_options)
         LOG.debug('update local db instance: %s with '
                   'data: %s' % (local_instance, base_options))
         self.sync_volume_attachment(context,
@@ -470,7 +472,7 @@ class PowerVCCloudManager(manager.Manager):
         ins, image, flavor = self._translate_pvc_instance(ctx, pvc_instance)
         security_group_map = self.\
             _get_security_group_for_instance(ctx, pvc_instance)
-        new_instance = instance_obj.Instance()
+        new_instance = instance_obj.Instance(ctx)
         new_instance.update(ins)
         block_device_map = [block_device.create_image_bdm(image['id'])]
         db_instance = self.compute_api.\
@@ -507,9 +509,11 @@ class PowerVCCloudManager(manager.Manager):
             self._fix_instance_nw_info(ctx, db_instance)
 
         # Send notification about instance creation due to sync operation
+        # Need to get a instance object rather than db instance as the related
+        # API changed
+        inst = instance_obj.Instance.get_by_uuid(ctx, db_instance['uuid'])
         compute.utils.notify_about_instance_usage(
-            self.notifier, ctx, db_instance, 'create.sync', network_info={},
-            system_metadata={}, extra_usage_info={})
+            self.notifier, ctx, inst, 'create.sync')
         LOG.debug('exiting to insert local instance for: %s' % pvc_instance)
 
     # Remove an instance that is not in pvc anymore from local DB.
@@ -925,7 +929,7 @@ class PowerVCCloudManager(manager.Manager):
                                         LOG.info(_("Return the first public "
                                                    "PowerVC flavor that fits "
                                                    "into the resource "
-                                                   "instance instead"), rtn)
+                                                   "instance instead"))
                                         break
                             if rtn is None:
                                 for key in rtns.keys():

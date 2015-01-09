@@ -11,6 +11,7 @@ from nova.openstack.common import log as logging
 from oslo.utils import excutils
 from powervc.nova.driver.virt.powervc import service
 from powervc.nova.driver.compute import constants
+from powervc.nova.driver.virt.powervc import pvc_vm_states
 from powervc.nova.common import exception as pvc_exception
 from powervc.common.client import factory
 from powervc.common.gettextutils import _
@@ -143,11 +144,12 @@ class PowerVCDriver(driver.ComputeDriver):
         max_mem = self._int_or_none(lpar_instance._info.get('max_memory_mb'))
         mem = self._int_or_none(lpar_instance._info.get('memory_mb'))
         num_cpu = self._int_or_none(lpar_instance._info.get('cpus'))
-        return {'state': lpar_instance._info['OS-EXT-STS:power_state'],
-                'max_mem': max_mem,
-                'mem': mem,
-                'num_cpu': num_cpu,
-                'cpu_time': 0}
+        hardwareInfo = pvc_vm_states.InstanceInfo(
+            state=lpar_instance._info['OS-EXT-STS:power_state'],
+            max_mem_kb=max_mem,
+            mem_kb=mem,
+            num_cpu=num_cpu)
+        return hardwareInfo
 
     def get_num_instances(self):
         """Return the total number of virtual machines.

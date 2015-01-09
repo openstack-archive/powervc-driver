@@ -834,14 +834,12 @@ class TestGetInfo(testtools.TestCase):
         """When everything is fine in the main path."""
         self.pvc_drv.get_instance = \
             mock.MagicMock(return_value=self.pvc_instance)
-        self.assertEqual(self.pvc_drv.get_info(self.os_instance),
-                         {'state': 1,
-                          'max_mem': 8192,
-                          'mem': 2048,
-                          'num_cpu': 2,
-                          'cpu_time': 0
-                          }
-                         )
+        hardwareInfo = pvc_vm_states.InstanceInfo(
+            state=1,
+            max_mem_kb=8192,
+            mem_kb=2048,
+            num_cpu=2)
+        self.assertEqual(self.pvc_drv.get_info(self.os_instance), hardwareInfo)
 
     def test_get_info_instance_not_found_0(self):
         """When any exception occurred during fetch PVC LPAR instance."""
