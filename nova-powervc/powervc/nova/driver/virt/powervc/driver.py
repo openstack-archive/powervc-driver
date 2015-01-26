@@ -324,6 +324,8 @@ class PowerVCDriver(driver.ComputeDriver):
         if constants.PVC_ID in meta.keys():
             del(meta[constants.PVC_ID])
         instance['metadata'] = meta
+        # remove activation engine configuration_data as db is not allowed
+        instance.system_metadata.pop('configuration_data', None)
         instance.save()
         LOG.debug('Saved instance with clearing pvc_id in metadata during'
                   'spawn failure: %s', instance)
