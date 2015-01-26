@@ -606,6 +606,8 @@ class PowerVCService(object):
         orig_instance['architecture'] = constants.PPC64
         orig_instance['power_state'] = powerstate
         orig_instance['metadata'] = meta
+        # remove activation engine configuration data as db is not allowed
+        orig_instance.system_metadata.pop('configuration_data', None)
         orig_instance.save()
         LOG.debug('Saved instance after created PowerVC instance: %s',
                   orig_instance)
