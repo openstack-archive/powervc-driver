@@ -498,6 +498,7 @@ class PowerVCDriverTestCase(test.NoDBTestCase):
     def test_detach_interface_with_no_local_id_match(self):
         instance = MagicMock()
         detach_instance = pvcIns
+
         def detach_response(pvc_id):
             if pvc_id == 'powervc-port-id-77774'\
                     or pvc_id == 'powervc-port-id-77775':
