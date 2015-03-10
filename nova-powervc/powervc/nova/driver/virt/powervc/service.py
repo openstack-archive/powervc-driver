@@ -5,7 +5,7 @@ from novaclient import exceptions
 from nova import exception
 from nova.image import glance
 from nova.openstack.common import loopingcall
-from nova.openstack.common import log as logging
+from oslo_log import log as logging
 from nova.compute import vm_states
 from powervc.nova.common.exception import LiveMigrationException
 from powervc.nova.driver.compute import constants

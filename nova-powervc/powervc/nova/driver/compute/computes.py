@@ -14,7 +14,7 @@ import powervc.common.utils as commonutils
 from nova.compute import api
 from nova import context
 
-from nova.openstack.common import log as logging
+from oslo_log import log as logging
 from nova.openstack.common import loopingcall
 from oslo import messaging
 
