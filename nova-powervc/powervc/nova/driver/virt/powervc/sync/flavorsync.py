@@ -8,7 +8,7 @@ from powervc.common.gettextutils import _
 from nova.compute import flavors
 from nova import exception
 from nova import db
-from nova.openstack.common import log as logging
+from oslo_log import log as logging
 from nova.openstack.common import loopingcall
 from powervc.nova.driver.compute import constants
 
