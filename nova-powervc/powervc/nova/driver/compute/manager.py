@@ -26,7 +26,7 @@ from nova.compute import flavors
 from nova.compute import task_states
 from nova.compute import vm_states
 from oslo.utils import importutils
-from nova.openstack.common import log as logging
+from oslo_log import log as logging
 from oslo.utils import timeutils
 from nova.openstack.common import loopingcall
 from nova.openstack.common.loopingcall import LoopingCallDone

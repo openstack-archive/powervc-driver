@@ -7,7 +7,7 @@ from nova.compute import task_states
 from nova.image import glance
 from nova.virt import driver
 from oslo.serialization import jsonutils
-from nova.openstack.common import log as logging
+from oslo_log import log as logging
 from oslo.utils import excutils
 from powervc.nova.driver.virt.powervc import service
 from powervc.nova.driver.compute import constants

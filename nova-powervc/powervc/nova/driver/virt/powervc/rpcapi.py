@@ -2,7 +2,7 @@
 
 from nova import rpc
 from oslo.messaging import Target
-from nova.openstack.common import log as logging
+from oslo_log import log as logging
 from powervc.common.constants import PVC_TOPIC
 
 LOG = logging.getLogger(__name__)
