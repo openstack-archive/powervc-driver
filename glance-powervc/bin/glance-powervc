@@ -33,7 +33,7 @@ from powervc.common import config
 
 from powervc.glance.common import config as glance_config
 
-from nova.openstack.common import log
+from oslo_log import log
 from nova.openstack.common import service
 from oslo.utils import importutils
 
