@@ -9,7 +9,6 @@ import sys
 from powervc.common import constants
 
 from oslo.config import cfg
-from oslo_log import log
 
 if 'powervc' in sys.argv[0]:
     # Extract and remove --config-file amqp_openstack.conf and --config-file
@@ -91,7 +90,6 @@ def parse_power_config(argv, base_project, base_prog=None):
     CONF(argv[1:], default_config_files=default_files)
     parse_power_config.power_config_loaded = True
 
-log.register_options(CONF)
 FILE_OPTIONS = {
     '': [],
     'openstack': [
