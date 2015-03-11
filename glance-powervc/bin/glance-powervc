@@ -38,6 +38,7 @@ from nova.openstack.common import service
 from oslo.utils import importutils
 
 CONF = glance_config.CONF
+log.register_options(CONF)
 
 LOG = log.getLogger(__name__)
 

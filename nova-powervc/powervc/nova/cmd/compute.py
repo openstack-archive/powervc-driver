@@ -11,6 +11,7 @@ from nova import utils
 
 def main():
     CONF = config.CONF
+    log.register_options(CONF)
     try:
         config.parse_config(sys.argv, 'nova')
         log.setup(CONF, 'powervc')
