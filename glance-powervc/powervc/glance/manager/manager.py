@@ -15,7 +15,7 @@ from operator import itemgetter
 from powervc.common import config
 
 from nova.openstack.common import service
-from nova.openstack.common import log as logging
+from oslo_log import log as logging
 from oslo.utils import timeutils
 from oslo.serialization import jsonutils
 from glanceclient.v1 import images as v1images
