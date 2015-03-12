@@ -676,7 +676,8 @@ class PowerVCCloudManager(manager.Manager):
         """
 
         # Get the uuid of pvc from the local instance.
-        metadata = self.compute_api.get_instance_metadata(ctx, local_instance)
+        inst = instance_obj.Instance.get_by_uuid(ctx, local_instance['uuid'])
+        metadata = self.compute_api.get_instance_metadata(ctx, inst)
         return (constants.PVC_ID in metadata)
 
     def _is_valid_pvc_instance(self, ctx, local_instance, pvc_instances):
@@ -686,7 +687,8 @@ class PowerVCCloudManager(manager.Manager):
         """
 
         # Get the uuid of pvc from the local instance.
-        metadata = self.compute_api.get_instance_metadata(ctx, local_instance)
+        inst = instance_obj.Instance.get_by_uuid(ctx, local_instance['uuid'])
+        metadata = self.compute_api.get_instance_metadata(ctx, inst)
         if constants.PVC_ID not in metadata:
             return False
 
@@ -1380,7 +1382,9 @@ class PowerVCCloudManager(manager.Manager):
             event_type, updated_instance, **states)
 
         # Call the compute API to update the local instance
-        instance_ref = self.compute_api.update(context, local_instance,
+        inst = instance_obj.Instance.get_by_uuid(context,
+                                                 local_instance['uuid'])
+        instance_ref = self.compute_api.update(context, inst,
                                                **updated_instance)
         LOG.debug('update state for local db instance: %s with '
                   'data: %s' % (local_instance, updated_instance))
@@ -1992,11 +1996,18 @@ class PowerVCCloudManager(manager.Manager):
                     port_ids = []
                     for port in ports:
                         port_ids.append(port.get('id'))
-                    nw_info = self.network_api.get_instance_nw_info(context,
-                                                                    instance,
-                                                                    nets,
-                                                                    port_ids)
-                    LOG.info("_fix_instance_nw_info" + str(nw_info))
+                    inst = instance_obj.Instance.get_by_uuid(context,
+                                                             instance['uuid'])
+                    try:
+                        nw_info = \
+                            self.network_api.get_instance_nw_info(context,
+                                                                  inst,
+                                                                  nets,
+                                                                  port_ids)
+                        LOG.info("_fix_instance_nw_info suc:" + str(nw_info))
+                    except Exception, e:
+                        LOG.error(_("_fix_instance_nw_info failed: %s") %
+                                  (e))
 
     def _get_instance_root_device_name(self, pvc_instance, db_instance):
         root_device_name = '/dev/sda'

@@ -46,7 +46,7 @@ if __name__ == '__main__':
     try:
         # Obtain glance opts from glance-api.conf
         glance_config.parse_config(sys.argv, 'glance', 'glance-api')
-        log.setup('powervc')
+        log.setup(CONF, 'powervc')
         LOG.info(_('Launching PowerVC Driver ImageManager service...'))
         manager = importutils.import_object(
                         'powervc.glance.manager.manager.PowerVCImageManager')
