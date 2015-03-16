@@ -25,6 +25,7 @@ amqp_os_conf="/etc/powervc/amqp-openstack-neutron.conf"
 amqp_pvc_conf="/etc/powervc/amqp-powervc.conf"
 pidfile="/var/run/$suffix/neutron-$suffix.pid"
 logfile="/var/log/$suffix/neutron-$suffix.log"
+neutronconf="/etc/neutron/neutron.conf"
 
 [ -e /etc/sysconfig/$prog ] && . /etc/sysconfig/$prog
 
@@ -35,7 +36,7 @@ start() {
     [ -f $config ] || exit 6
     [ -f $powervcconf ] || exit 6
     echo -n $"Starting $prog: "
-    daemon --user powervc --pidfile $pidfile "$exec --config-file $amqp_os_conf --config-file $amqp_pvc_conf --config-file $config --config-file $powervcconf --logfile $logfile &>/dev/null & echo \$! > $pidfile"
+    daemon --user powervc --pidfile $pidfile "$exec --config-file $neutronconf --config-file $amqp_os_conf --config-file $amqp_pvc_conf --config-file $config --config-file $powervcconf --logfile $logfile &>/dev/null & echo \$! > $pidfile"
     retval=$?
     echo
     [ $retval -eq 0 ] && touch $lockfile
