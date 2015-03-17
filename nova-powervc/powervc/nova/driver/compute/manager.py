@@ -449,7 +449,9 @@ class PowerVCCloudManager(manager.Manager):
             ins['project_id'] = db_instance.get('project_id')
             # Need to update the system metadate when the flavor of
             # the instance changes
-            sys_meta = flavors.extract_flavor(db_instance)
+            inst = instance_obj.Instance.get_by_uuid(ctx,
+                                                     db_instance.get('uuid'))
+            sys_meta = inst.get_flavor()
             instance_type_id = sys_meta['id']
             if instance_type_id != flavor['id']:
                 ins['system_metadata'] = flavors.\
@@ -660,8 +662,9 @@ class PowerVCCloudManager(manager.Manager):
         self.network_api.deallocate_for_instance(ctx, local_instance)
 
         # Send notification about instance deletion due to sync operation
+        inst = instance_obj.Instance.get_by_uuid(ctx, local_instance['uuid'])
         compute.utils.notify_about_instance_usage(
-            self.notifier, ctx, instance_ref, 'delete.sync', network_info={},
+            self.notifier, ctx, inst, 'delete.sync', network_info={},
             system_metadata={}, extra_usage_info={})
         LOG.debug(_('Send a notification about instance deletion of %s,'
                     'event type is %s')
@@ -1408,8 +1411,9 @@ class PowerVCCloudManager(manager.Manager):
         tokens[-1] = constants.SYNC_EVENT_SUFFIX
         event = '.'.join(tokens)
         LOG.debug(_('Sending instance sync notification: %s' % (event)))
+        inst = instance_obj.Instance.get_by_uuid(context, instance['uuid'])
         compute.utils.notify_about_instance_usage(self.notifier, context,
-                                                  instance, event,
+                                                  inst, event,
                                                   network_info={},
                                                   system_metadata={},
                                                   extra_usage_info={})
@@ -1695,9 +1699,11 @@ class PowerVCCloudManager(manager.Manager):
                                              pvc_instance)
 
                 # send out event for instance create finished
+                inst = instance_obj.Instance.\
+                    get_by_uuid(context, local_instance['uuid'])
                 compute.utils.notify_about_instance_usage(self.notifier,
                                                           context,
-                                                          local_instance,
+                                                          inst,
                                                           "create.sync",
                                                           network_info={},
                                                           system_metadata={},
