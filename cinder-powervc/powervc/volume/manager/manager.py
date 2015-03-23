@@ -816,8 +816,8 @@ class PowerVCCinderManager(service.Service):
             db_matches = db.volume_get_all(context,
                                            marker=None,
                                            limit=None,
-                                           sort_key='created_at',
-                                           sort_dir='desc')
+                                           sort_keys=['created_at'],
+                                           sort_dirs=['desc'])
             for local_volume in db_matches:
                 if self._get_pvc_id_from_local_volume(local_volume)is not None:
                     local_pvc_volumes.append(local_volume)
