@@ -714,8 +714,9 @@ class Utils(object):
                 metadata = storage_volume.__dict__.get("metadata")
                 if(metadata is not None):
                     is_boot_volume = metadata.get("is_boot_volume")
+                    is_image_volume = metadata.get("is_image_volume")
                     # Filter out the boot volumes
-                    if(is_boot_volume != "True"):
+                    if(is_boot_volume != "True" or is_image_volume == "True"):
                         accessible_storage_volumes.append(storage_volume)
                 else:
                     accessible_storage_volumes.append(storage_volume)
