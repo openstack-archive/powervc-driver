@@ -10,7 +10,7 @@ Created on Aug 1, 2013
 @author: John Kasperski
 '''
 
-from neutron.openstack.common import log as logging
+from oslo_log import log as logging
 from neutronclient.common import exceptions
 
 import powervc.common.client.extensions.base as base

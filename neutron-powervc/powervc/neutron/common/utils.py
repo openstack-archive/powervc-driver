@@ -13,7 +13,7 @@ from powervc.neutron.common import constants
 from oslo.config import cfg
 import json
 
-from neutron.openstack.common import log as logging
+from oslo_log import log as logging
 LOG = logging.getLogger(__name__)
 
 CONF = cfg.CONF

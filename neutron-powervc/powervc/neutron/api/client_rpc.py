@@ -8,7 +8,7 @@ from oslo.config import cfg
 
 from neutron.common.rpc import RpcProxy
 from neutron.common import rpc
-from neutron.openstack.common import log as logging
+from oslo_log import log as logging
 
 from powervc.common.gettextutils import _
 

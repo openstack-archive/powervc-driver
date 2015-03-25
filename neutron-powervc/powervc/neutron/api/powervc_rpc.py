@@ -1,6 +1,6 @@
 # Copyright 2013 IBM Corp.
 
-from neutron.openstack.common import log as logging
+from oslo_log import log as logging
 
 from powervc.common.constants import LOCAL_OS
 from powervc.common.constants import POWERVC_OS

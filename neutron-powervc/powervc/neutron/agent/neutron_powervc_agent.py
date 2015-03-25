@@ -19,7 +19,7 @@ import time
 from exceptions import KeyboardInterrupt
 
 from neutron.common import rpc
-from neutron.openstack.common import log as logging
+from oslo_log import log as logging
 
 from oslo.config import cfg
 

@@ -21,7 +21,7 @@ CONF = cfg.CONF
 from neutron.common import config as logging_config
 from neutron.openstack.common import rpc
 from neutron.openstack.common.rpc import dispatcher
-from neutron.openstack.common import log as logging
+from oslo_log import log as logging
 from powervc.common.gettextutils import _
 from neutron import context
 

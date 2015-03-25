@@ -10,7 +10,7 @@ Created on Aug 1, 2013
 @author: John Kasperski
 '''
 
-from neutron.openstack.common import log as logging
+from oslo_log import log as logging
 
 from powervc.common.client import factory
 from powervc.common.constants import SERVICE_TYPES

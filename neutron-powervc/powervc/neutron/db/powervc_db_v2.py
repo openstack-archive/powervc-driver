@@ -4,7 +4,7 @@ import sqlalchemy as sql
 from sqlalchemy.orm import exc
 
 import neutron.db.api as db_api
-from neutron.openstack.common import log as logging
+from oslo_log import log as logging
 
 from powervc.common.gettextutils import _
 from powervc.neutron.common import constants
