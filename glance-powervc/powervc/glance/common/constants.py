@@ -94,3 +94,6 @@ SYNC_PASSED = 1
 SYNC_FAILED = -1
 IMAGE_SYNC_RETRY_INTERVAL_TIME_IN_SECONDS = 60
 IMAGE_SYNC_CHECK_INTERVAL_TIME_IN_SECONDS = 1
+
+# Block Device Mapping Key in image properties
+BDM_KEYS = 'block_device_mapping'

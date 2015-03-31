@@ -1473,6 +1473,10 @@ class PowerVCImageManager(service.Service):
             # Community fix needs the property 'checksum' must be set
             field_dict['checksum'] = self._get_image_checksum(
                 src_image.to_dict())
+
+            # We do not want to update bdm from pvc during adding image
+            if constants.BDM_KEYS in field_dict.get('properties'):
+                del(field_dict['properties'][constants.BDM_KEYS])
             new_image = v1images.create(**field_dict)
             updated_image = None
             if len(update_field_dict) > 0:
@@ -1780,6 +1784,13 @@ class PowerVCImageManager(service.Service):
                         field_dict[imagekey] = field_value
                     else:
                         patch_dict[imagekey] = field_value
+
+        # We do not want to update bdm from pvc and
+        # we do not want to update the empty bdm info to pvc
+        if remove_list and constants.BDM_KEYS in remove_list:
+            remove_list.remove(constants.BDM_KEYS)
+        if field_dict and constants.BDM_KEYS in field_dict:
+            del(field_dict[constants.BDM_KEYS])
         return field_dict, patch_dict, remove_list
 
     def _filter_v1image_properties(self, props):
@@ -2048,6 +2059,12 @@ class PowerVCImageManager(service.Service):
         else:
             remove_list = None
 
+        # We do not want to update bdm from pvc and
+        # we do not want to update the empty bdm info to pvc
+        if constants.BDM_KEYS in remove_list:
+            remove_list.remove(constants.BDM_KEYS)
+        if add_update_dict and constants.BDM_KEYS in add_update_dict:
+            del(add_update_dict[constants.BDM_KEYS])
         return add_update_dict, remove_list
 
     def _filter_v1image_for_v2_update(self, v1image_dict):
