@@ -1142,8 +1142,11 @@ class PowerVCNeutronAgent(object):
                                  local_id, local_device_id)
                         self.local.set_port_device_id(local_port,
                                                       local_device_id)
+                    elif pvc_device == constants.POWERVC_LOCKDEVICE_ID:
+                        LOG.debug(_("Lock port, skip updating local port: %s"),
+                                 local_id)
                     else:
-                        LOG.info(_("Unable to update local port %s. Local "
+                        LOG.warning(_("Unable to update local port %s. Local "
                                    "instance for PowerVC %s can not be found"),
                                  local_id, pvc_device)
             # Do any of the other fields in the ports need to be updated
