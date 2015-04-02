@@ -10,7 +10,7 @@ from cinder import db
 from cinder import context
 from cinder import service as taskservice
 from cinder.openstack.common import service
-from cinder.openstack.common import log
+from oslo_log import log
 from powervc.common import config
 from powervc.common.gettextutils import _
 from powervc.volume.manager import constants

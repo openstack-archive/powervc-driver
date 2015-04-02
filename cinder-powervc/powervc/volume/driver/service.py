@@ -4,7 +4,7 @@ from __future__ import absolute_import
 import httplib
 
 from cinderclient import exceptions
-from cinder.openstack.common import log as logging
+from oslo_log import log as logging
 from powervc.common import constants as common_constants
 from powervc.common.gettextutils import _
 from powervc.volume.manager import constants

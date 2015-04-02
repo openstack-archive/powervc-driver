@@ -4,7 +4,7 @@ import logging
 import sys
 
 from cinder import exception
-from cinder.openstack.common import log as cinderLogging
+from oslo_log import log as cinderLogging
 from cinder.volume.driver import VolumeDriver
 from cinderclient.exceptions import NotFound
 from oslo.config import cfg

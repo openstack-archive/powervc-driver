@@ -29,7 +29,7 @@ i18n.install('cinder')
 from powervc.common import config
 
 from cinder import utils
-from cinder.openstack.common import log as logging
+from oslo_log import log as logging
 # Currently cinder service uses threading instead of eventlet's event,
 # This causes if you don't monkey patch threading, it will hang there
 # all the time. For detail, check this fix in incubator project:
@@ -51,14 +51,12 @@ from powervc.volume.manager import manager
 
 eventlet.patcher.monkey_patch(os=False, socket=True, time=True)
 
-logging.setup('powervc')
-
 
 LOG = logging.getLogger(__name__)
 
 if __name__ == '__main__':
     try:
-        logging.setup('powervc')
+        logging.setup(config.CONF, 'powervc')
         utils.monkey_patch()
         LOG.info(_('Launching PowerVC Driver StorageManager service...'))
         launcher = service.ServiceLauncher()
