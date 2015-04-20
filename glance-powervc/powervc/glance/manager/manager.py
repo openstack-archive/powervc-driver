@@ -1787,6 +1787,8 @@ class PowerVCImageManager(service.Service):
 
         # We do not want to update bdm from pvc and
         # we do not want to update the empty bdm info to pvc
+        if not remove_list:
+            remove_list = []
         if remove_list and constants.BDM_KEY in remove_list:
             remove_list.remove(constants.BDM_KEY)
         if field_dict and constants.BDM_KEY in field_dict:
@@ -2063,6 +2065,8 @@ class PowerVCImageManager(service.Service):
 
         # We do not want to update bdm from pvc and
         # we do not want to update the empty bdm info to pvc
+        if not remove_list:
+            remove_list = []
         if constants.BDM_KEY in remove_list:
             remove_list.remove(constants.BDM_KEY)
         if add_update_dict and constants.BDM_KEY in add_update_dict:
