@@ -306,7 +306,8 @@ class PowerVCCloudManager(manager.Manager):
 
         inst = instance_obj.Instance.get_by_uuid(context,
                                                  local_instance.get('uuid'))
-        self.compute_api.update(context, inst, **base_options)
+        inst.update(base_options)
+        inst.save()
         LOG.debug('update local db instance: %s with '
                   'data: %s' % (local_instance, base_options))
         self.sync_volume_attachment(context,
@@ -477,7 +478,7 @@ class PowerVCCloudManager(manager.Manager):
         new_instance = instance_obj.Instance(ctx)
         new_instance.update(ins)
         block_device_map = [block_device.create_image_bdm(image['id'])]
-        db_instance = self.compute_api.\
+        inst_obj = self.compute_api.\
             create_db_entry_for_new_instance(ctx,
                                              flavor,
                                              image,
@@ -489,31 +490,31 @@ class PowerVCCloudManager(manager.Manager):
         # The API creates the instance in the BUIDING state, but this
         # instance is actually already built most likely, so we update
         # the state to whatever the state is in PowerVC.
-        db_instance = self.compute_api.update(
-            ctx, db_instance,
-            power_state=pvc_instance['OS-EXT-STS:power_state'],
-            vm_state=pvc_instance['OS-EXT-STS:vm_state'],
-            task_state=pvc_instance['OS-EXT-STS:task_state'])
+        update_dict = {"power_state" : pvc_instance['OS-EXT-STS:power_state'],
+                       "vm_state" : pvc_instance['OS-EXT-STS:vm_state'],
+                       "task_state" : pvc_instance['OS-EXT-STS:task_state']}
+        inst_obj.update(update_dict)
+        inst_obj.save()
         LOG.debug('created local db instance: %s for '
-                  'powervc instance: %s' % (db_instance, pvc_instance))
+                  'powervc instance: %s' % (inst_obj, pvc_instance))
         self.sync_volume_attachment(ctx,
                                     ins['metadata'][constants.PVC_ID],
-                                    db_instance)
+                                    inst_obj)
 
         # Fix the network info.
         local_port_ids = self.driver._service.\
             set_device_id_on_port_by_pvc_instance_uuid(ctx,
-                                                       db_instance['uuid'],
+                                                       inst_obj['uuid'],
                                                        pvc_instance['id'])
         # If neutron agent has synced ports, then go ahead to fix the network,
         # otherwise wait for the next full update.
         if local_port_ids and len(local_port_ids) > 0:
-            self._fix_instance_nw_info(ctx, db_instance)
+            self._fix_instance_nw_info(ctx, inst_obj)
 
         # Send notification about instance creation due to sync operation
         # Need to get a instance object rather than db instance as the related
         # API changed
-        inst = instance_obj.Instance.get_by_uuid(ctx, db_instance['uuid'])
+        inst = instance_obj.Instance.get_by_uuid(ctx, inst_obj['uuid'])
         compute.utils.notify_about_instance_usage(
             self.notifier, ctx, inst, 'create.sync')
         LOG.debug('exiting to insert local instance for: %s' % pvc_instance)
@@ -1387,13 +1388,12 @@ class PowerVCCloudManager(manager.Manager):
         # Call the compute API to update the local instance
         inst = instance_obj.Instance.get_by_uuid(context,
                                                  local_instance['uuid'])
-        instance_ref = self.compute_api.update(context, inst,
-                                               **updated_instance)
+        inst.update(updated_instance)
+        inst.save()
         LOG.debug('update state for local db instance: %s with '
                   'data: %s' % (local_instance, updated_instance))
         # Send sync notification
-        self._send_instance_sync_notification(context, event_type,
-                                              instance_ref)
+        self._send_instance_sync_notification(context, event_type, inst)
 
     def _send_instance_sync_notification(self, context, event_type, instance):
         """
@@ -1992,11 +1992,21 @@ class PowerVCCloudManager(manager.Manager):
                 # Empty network_info, could be missing network_info
                 search_opts = {'device_id': instance['uuid'],
                                'tenant_id': instance['project_id']}
-                data = self.network_api.list_ports(context, **search_opts)
+                try:
+                    data = self.network_api.list_ports(context, **search_opts)
+                except Exception, e:
+                        LOG.error(_("_fix_instance_nw_info failed: %s") %
+                                  (e))
+                        return
                 ports = data.get('ports', [])
                 # If ports is not empty, should put that into network_info.
                 if ports:
-                    nets = self.network_api.get_all(context)
+                    try:
+                        nets = self.network_api.get_all(context)
+                    except Exception, e:
+                        LOG.error(_("_fix_instance_nw_info failed: %s") %
+                                  (e))
+                        return
                     # Call this will trigger info_cache update,
                     # which links instance with the port.
                     port_ids = []
