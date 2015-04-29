@@ -309,7 +309,7 @@ class PowerVCDriver(VolumeDriver):
         self._service.attach_volume(context, volume, instance_uuid, host_name,
                                     mountpoint)
 
-    def detach_volume(self, context, volume):
+    def detach_volume(self, context, volume, attachment):
         """Callback for volume detached."""
         # wait for volume to be detached
         self._service.detach_volume(context, volume)
