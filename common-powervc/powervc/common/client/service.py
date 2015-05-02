@@ -431,6 +431,13 @@ class ClientServiceCatalog(object):
         if ver is not None:
             return self._build_wrappered_services({ver: [url]}, svc_type)
         versions = self._query_endpoint(url)
+        # From the latest ICM, versions are stripped from image service,
+        # only ip:port left, in this case only "CURRENT" status client can be
+        # retrieved, that is to say, for image service only v2.3 url returned
+        # but v1.1 is lost, this will fail glance sync progress as both of
+        # v2.3 and v1.1 are necessary, add this workaround to fix the problem.
+        if svc_type == str(SERVICE_TYPES.image):
+            versions['v1'] = [url]
         return self._build_wrappered_services(versions, svc_type)
 
     def _normalize_catalog_entry(self, entry):
