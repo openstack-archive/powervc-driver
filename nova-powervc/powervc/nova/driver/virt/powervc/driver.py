@@ -373,29 +373,29 @@ class PowerVCDriver(driver.ComputeDriver):
         """
         return self._service.reboot(instance, reboot_type)
 
-    def get_console_pool_info(self, console_type):
+    def get_console_pool_info(self, *args, **kwargs):
         raise NotImplementedError()
 
-    def get_console_output(self, context, instance):
+    def get_console_output(self, *args, **kwargs):
         raise NotImplementedError()
 
-    def get_vnc_console(self, instance):
+    def get_vnc_console(self, *args, **kwargs):
         raise NotImplementedError()
 
-    def get_spice_console(self, instance):
+    def get_spice_console(self, *args, **kwargs):
         raise NotImplementedError()
 
-    def get_diagnostics(self, instance):
+    def get_diagnostics(self, *args, **kwargs):
         """Return data about VM diagnostics."""
         raise NotImplementedError()
 
-    def get_all_bw_counters(self, instances):
+    def get_all_bw_counters(self, *args, **kwargs):
         """Return bandwidth usage counters for each interface on each
            running VM.
         """
         raise NotImplementedError()
 
-    def get_all_volume_usage(self, context, compute_host_bdms):
+    def get_all_volume_usage(self, *args, **kwargs):
         """Return usage info for volumes attached to vms on
            a given host.-
         """
@@ -604,8 +604,7 @@ class PowerVCDriver(driver.ComputeDriver):
         LOG.debug(_("Confirm a resize operation."))
         return self._service.confirm_migration(instance)
 
-    def finish_revert_migration(self, instance, network_info,
-                                block_device_info=None, power_on=True):
+    def finish_revert_migration(self, *args, **kwargs):
         """
         Finish reverting a resize.
 
@@ -618,33 +617,31 @@ class PowerVCDriver(driver.ComputeDriver):
         """
         raise NotImplementedError()
 
-    def pause(self, instance):
+    def pause(self, *args, **kwargs):
         """Pause the specified instance."""
         raise NotImplementedError()
 
-    def unpause(self, instance):
+    def unpause(self, *args, **kwargs):
         """Unpause paused VM instance."""
         raise NotImplementedError()
 
-    def suspend(self, instance):
+    def suspend(self, *args, **kwargs):
         """suspend the specified instance."""
         raise NotImplementedError()
 
-    def resume(self, instance, network_info, block_device_info=None):
+    def resume(self, *args, **kwargs):
         """resume the specified instance."""
         raise NotImplementedError()
 
-    def resume_state_on_host_boot(self, context, instance, network_info,
-                                  block_device_info=None):
+    def resume_state_on_host_boot(self, *args, **kwargs):
         """resume guest state when a host is booted."""
         raise NotImplementedError()
 
-    def rescue(self, context, instance, network_info, image_meta,
-               rescue_password):
+    def rescue(self, *args, **kwargs):
         """Rescue the specified instance."""
         raise NotImplementedError()
 
-    def unrescue(self, instance, network_info):
+    def unrescue(self, *args, **kwargs):
         """Unrescue the specified instance."""
         raise NotImplementedError()
 
@@ -658,11 +655,11 @@ class PowerVCDriver(driver.ComputeDriver):
         """Power on the specified instance."""
         return self._service.power_on(instance)
 
-    def soft_delete(self, instance):
+    def soft_delete(self, *args, **kwargs):
         """Soft delete the specified instance."""
         raise NotImplementedError()
 
-    def restore(self, instance):
+    def restore(self, *args, **kwargs):
         """Restore the specified instance."""
         raise NotImplementedError()
 
@@ -679,7 +676,7 @@ class PowerVCDriver(driver.ComputeDriver):
             stats = [stats]
         return [s['hypervisor_hostname'] for s in stats]
 
-    def get_available_resource(self, nodename):
+    def get_available_resource(self, *args, **kwargs):
         """Retrieve resource information.
 
         This method is called when nova-compute launches, and
@@ -752,7 +749,7 @@ class PowerVCDriver(driver.ComputeDriver):
 
         return {}
 
-    def pre_block_migration(self, ctxt, instance_ref, disk_info):
+    def pre_block_migration(self, *args, **kwargs):
         """Prepare a block device for migration
 
         :param ctxt: security context
@@ -796,10 +793,7 @@ class PowerVCDriver(driver.ComputeDriver):
 
         post_method(ctxt, instance_ref, dest, block_migration, migrate_data)
 
-    def post_live_migration_at_destination(self, ctxt, instance_ref,
-                                           network_info,
-                                           block_migration=False,
-                                           block_device_info=None):
+    def post_live_migration_at_destination(self, *args, **kwargs):
         """Post operation of live migration at destination host.
 
         :param ctxt: security context
@@ -809,7 +803,7 @@ class PowerVCDriver(driver.ComputeDriver):
         """
         pass
 
-    def check_instance_shared_storage_local(self, ctxt, instance):
+    def check_instance_shared_storage_local(self, *args, **kwargs):
         """Check if instance files located on shared storage.
 
         This runs check on the destination host, and then calls
@@ -820,7 +814,7 @@ class PowerVCDriver(driver.ComputeDriver):
         """
         raise NotImplementedError()
 
-    def check_instance_shared_storage_remote(self, ctxt, data):
+    def check_instance_shared_storage_remote(self, *args, **kwargs):
         """Check if instance files located on shared storage.
 
         :param context: security context
@@ -828,7 +822,7 @@ class PowerVCDriver(driver.ComputeDriver):
         """
         raise NotImplementedError()
 
-    def check_instance_shared_storage_cleanup(self, ctxt, data):
+    def check_instance_shared_storage_cleanup(self, *args, **kwargs):
         """Do cleanup on host after check_instance_shared_storage calls
 
         :param ctxt: security context
@@ -889,8 +883,7 @@ class PowerVCDriver(driver.ComputeDriver):
         else:
             return dst_compute_info
 
-    def check_can_live_migrate_destination_cleanup(self, ctxt,
-                                                   dest_check_data):
+    def check_can_live_migrate_destination_cleanup(self, *args, **kwargs):
         """Do required cleanup on dest host after check_can_live_migrate calls
 
         :param ctxt: security context
@@ -912,7 +905,7 @@ class PowerVCDriver(driver.ComputeDriver):
         """
         return dest_check_data
 
-    def refresh_security_group_rules(self, security_group_id):
+    def refresh_security_group_rules(self, *args, **kwargs):
         """This method is called after a change to security groups.
 
         All security groups and their associated rules live in the datastore,
@@ -924,7 +917,7 @@ class PowerVCDriver(driver.ComputeDriver):
         """
         raise NotImplementedError()
 
-    def refresh_security_group_members(self, security_group_id):
+    def refresh_security_group_members(self, *args, **kwargs):
         """This method is called when a security group is added to an instance.
 
         This message is sent to the virtualization drivers on hosts that are
@@ -960,7 +953,7 @@ class PowerVCDriver(driver.ComputeDriver):
         """
         raise NotImplementedError()
 
-    def refresh_provider_fw_rules(self):
+    def refresh_provider_fw_rules(self, *args, **kwargs):
         """This triggers a firewall update based on database changes.
 
         When this is called, rules have either been added or removed from the
@@ -976,11 +969,11 @@ class PowerVCDriver(driver.ComputeDriver):
         """
         raise NotImplementedError()
 
-    def reset_network(self, instance):
+    def reset_network(self, *args, **kwargs):
         """reset networking for specified instance."""
         pass
 
-    def ensure_filtering_rules_for_instance(self, instance_ref, network_info):
+    def ensure_filtering_rules_for_instance(self, *args, **kwargs):
         """Setting up filtering rules and waiting for its completion.
 
         To migrate an instance, filtering rules to hypervisors
@@ -1005,19 +998,19 @@ class PowerVCDriver(driver.ComputeDriver):
         """
         pass
 
-    def filter_defer_apply_on(self):
+    def filter_defer_apply_on(self, *args, **kwargs):
         """Defer application of IPTables rules."""
         pass
 
-    def filter_defer_apply_off(self):
+    def filter_defer_apply_off(self, *args, **kwargs):
         """Turn off deferral of IPTables rules and apply the rules now."""
         pass
 
-    def unfilter_instance(self, instance, network_info):
+    def unfilter_instance(self, *args, **kwargs):
         """Stop filtering instance."""
         pass
 
-    def set_admin_password(self, context, instance_id, new_pass=None):
+    def set_admin_password(self, *args, **kwargs):
         """
         Set the root password on the specified instance.
 
@@ -1027,7 +1020,7 @@ class PowerVCDriver(driver.ComputeDriver):
         """
         raise NotImplementedError()
 
-    def inject_file(self, instance, b64_path, b64_contents):
+    def inject_file(self, *args, **kwargs):
         """
         Writes a file on the specified instance.
 
@@ -1039,7 +1032,7 @@ class PowerVCDriver(driver.ComputeDriver):
         """
         raise NotImplementedError()
 
-    def change_instance_metadata(self, context, instance, diff):
+    def change_instance_metadata(self, *args, **kwargs):
         """
         Applies a diff to the instance metadata.
 
@@ -1050,11 +1043,11 @@ class PowerVCDriver(driver.ComputeDriver):
         """
         pass
 
-    def inject_network_info(self, instance, nw_info):
+    def inject_network_info(self, *args, **kwargs):
         """inject network info for specified instance."""
         pass
 
-    def poll_rebooting_instances(self, timeout, instances):
+    def poll_rebooting_instances(self, *args, **kwargs):
         """Poll for rebooting instances
 
         :param timeout: the currently configured timeout for considering
@@ -1064,7 +1057,7 @@ class PowerVCDriver(driver.ComputeDriver):
         """
         raise NotImplementedError()
 
-    def host_power_action(self, host, action):
+    def host_power_action(self, *args, **kwargs):
         """Reboots, shuts down or powers up the host."""
         raise NotImplementedError()
 
@@ -1085,20 +1078,20 @@ class PowerVCDriver(driver.ComputeDriver):
         else:
             return 'off_maintenance'
 
-    def set_host_enabled(self, host, enabled):
+    def set_host_enabled(self, *args, **kwargs):
         """Sets the specified host's ability to accept new instances."""
         raise NotImplementedError()
 
-    def get_host_uptime(self, host):
+    def get_host_uptime(self, *args, **kwargs):
         """Returns the result of calling "uptime" on the target host."""
         raise NotImplementedError()
 
-    def plug_vifs(self, instance, network_info):
+    def plug_vifs(self, *args, **kwargs):
         """Plug VIFs into networks."""
         # TODO: this is hardcoded
         pass
 
-    def unplug_vifs(self, instance, network_info):
+    def unplug_vifs(self, *args, **kwargs):
         """Unplug VIFs from networks."""
         # TODO: this is hardcoded
         pass
@@ -1116,7 +1109,7 @@ class PowerVCDriver(driver.ComputeDriver):
         """Return that a given node is known and available."""
         return nodename in self.get_available_nodes(refresh=True)
 
-    def block_stats(self, instance_name, disk_id):
+    def block_stats(self, *args, **kwargs):
         """
         Return performance counters associated with the given disk_id on the
         given instance_name.  These are returned as [rd_req, rd_bytes, wr_req,
@@ -1136,7 +1129,7 @@ class PowerVCDriver(driver.ComputeDriver):
         """
         raise NotImplementedError()
 
-    def interface_stats(self, instance_name, iface_id):
+    def interface_stats(self, *args, **kwargs):
         """
         Return performance counters associated with the given iface_id on the
         given instance_id.  These are returned as [rx_bytes, rx_packets,
@@ -1156,11 +1149,11 @@ class PowerVCDriver(driver.ComputeDriver):
         """
         raise NotImplementedError()
 
-    def legacy_nwinfo(self):
+    def legacy_nwinfo(self, *args, **kwargs):
         """True if the driver requires the legacy network_info format."""
         return False
 
-    def macs_for_instance(self, instance):
+    def macs_for_instance(self, *args, **kwargs):
         """What MAC addresses must this instance have?
 
         Some hypervisors (such as bare metal) cannot do freeform virtualisation
@@ -1189,7 +1182,7 @@ class PowerVCDriver(driver.ComputeDriver):
         """
         return None
 
-    def manage_image_cache(self, context, all_instances):
+    def manage_image_cache(self, *args, **kwargs):
         """
         Manage the driver's local image cache.
 
@@ -1200,20 +1193,19 @@ class PowerVCDriver(driver.ComputeDriver):
         """
         pass
 
-    def add_to_aggregate(self, context, aggregate, host, **kwargs):
+    def add_to_aggregate(self, *args, **kwargs):
         """Add a compute host to an aggregate."""
         pass
 
-    def remove_from_aggregate(self, context, aggregate, host, **kwargs):
+    def remove_from_aggregate(self, *args, **kwargs):
         """Remove a compute host from an aggregate."""
         pass
 
-    def undo_aggregate_operation(self, context, op, aggregate,
-                                 host, set_error=True):
+    def undo_aggregate_operation(self, *args, **kwargs):
         """Undo for Resource Pools."""
         raise NotImplementedError()
 
-    def get_volume_connector(self, instance):
+    def get_volume_connector(self, *args, **kwargs):
         """Get connector information for the instance for attaching to volumes.
 
         Connector information is a dictionary representing the ip of the
@@ -1242,7 +1234,7 @@ class PowerVCDriver(driver.ComputeDriver):
             'host': 'hostname'
         }
 
-    def get_per_instance_usage(self):
+    def get_per_instance_usage(self, *args, **kwargs):
         """Get information about instance resource usage.
 
         :returns: dict of  nova uuid => dict of usage info
@@ -1250,7 +1242,7 @@ class PowerVCDriver(driver.ComputeDriver):
         # TODO: This is hardcoded
         return {}
 
-    def instance_on_disk(self, instance):
+    def instance_on_disk(self, *args, **kwargs):
         """Checks access of instance files on the host.
 
         :param instance: instance to lookup

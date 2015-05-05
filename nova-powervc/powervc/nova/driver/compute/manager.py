@@ -490,9 +490,9 @@ class PowerVCCloudManager(manager.Manager):
         # The API creates the instance in the BUIDING state, but this
         # instance is actually already built most likely, so we update
         # the state to whatever the state is in PowerVC.
-        update_dict = {"power_state" : pvc_instance['OS-EXT-STS:power_state'],
-                       "vm_state" : pvc_instance['OS-EXT-STS:vm_state'],
-                       "task_state" : pvc_instance['OS-EXT-STS:task_state']}
+        update_dict = {"power_state": pvc_instance['OS-EXT-STS:power_state'],
+                       "vm_state": pvc_instance['OS-EXT-STS:vm_state'],
+                       "task_state": pvc_instance['OS-EXT-STS:task_state']}
         inst_obj.update(update_dict)
         inst_obj.save()
         LOG.debug('created local db instance: %s for '
