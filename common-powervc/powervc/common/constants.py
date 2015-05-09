@@ -57,6 +57,7 @@ class ServiceTypes(object):
     """
     def __init__(self):
         self.volume = ServiceType('volume', 'cinder')
+        self.volumev2 = ServiceType('volumev2', 'cinder')
         self.compute = ServiceType('compute', 'nova')
         self.network = ServiceType('network', 'neutron')
         self.identity = ServiceType('identity', 'keystone')
