@@ -56,6 +56,8 @@ class PowerVCService(object):
         from powervc.common.client import factory
         self._cinderclient = factory.\
             LOCAL.new_client(str(common_constants.SERVICE_TYPES.volume))
+        self._cinderclientv2 = factory.\
+            LOCAL.new_client(str(common_constants.SERVICE_TYPES.volumev2))
         self._pvccinderclient = factory.\
             POWERVC.new_client(str(common_constants.SERVICE_TYPES.volume))
         self.max_tries = CONF.powervc.volume_max_try_times
@@ -1042,7 +1044,7 @@ class PowerVCService(object):
         """
         pvc_volume_id = ''
 
-        local_volume = self._cinderclient.volumes.get(local_id)
+        local_volume = self._cinderclientv2.volumes.get(local_id)
 
         if local_volume is None:
             return pvc_volume_id

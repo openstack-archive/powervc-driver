@@ -396,6 +396,10 @@ class ClientServiceCatalog(object):
                     wrappers.append(CinderService(svc_type, version,
                                                   s_url, self.base_opts,
                                                   self.keystone))
+                elif svc_type == str(SERVICE_TYPES.volumev2):
+                    wrappers.append(CinderService(svc_type, version,
+                                                  s_url, self.base_opts,
+                                                  self.keystone))
                 elif svc_type == str(SERVICE_TYPES.network):
                     wrappers.append(NeutronService(svc_type, version,
                                                    s_url, self.base_opts,
