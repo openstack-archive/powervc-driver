@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright 2013 IBM Corp.
+# Copyright 2015 IBM Corp.
 
 import sys
 import traceback
@@ -23,7 +23,7 @@ from oslo.config import cfg
 
 from neutron import context
 from neutron.common import config as logging_config
-from neutron.openstack.common import log as logging
+from oslo_log import log as logging
 
 from powervc.neutron.api.client_rpc import RpcClient
 
@@ -64,7 +64,7 @@ def main():
             usage()
 
         argv = [sys.argv[0]]
-        config.parse_power_config(argv, 'powervc-neutron')
+        config.parse_power_config(argv, 'neutron')
         # logging_config.setup_logging(cfg.CONF)
 
         LOG.debug(_('Create RPC interface'))
