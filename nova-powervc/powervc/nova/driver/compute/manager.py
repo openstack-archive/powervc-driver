@@ -20,6 +20,7 @@ from nova import compute
 from nova import conductor
 from nova import network
 from nova import block_device
+from nova.objects import block_device as block_device_obj
 from nova.db import api as db_api
 from nova.image import glance
 from nova.compute import flavors
@@ -478,13 +479,15 @@ class PowerVCCloudManager(manager.Manager):
         new_instance = instance_obj.Instance(ctx)
         new_instance.update(ins)
         block_device_map = [block_device.create_image_bdm(image['id'])]
+        block_device_mappings = block_device_obj.\
+            block_device_make_list_from_dicts(ctx, block_device_map)
         inst_obj = self.compute_api.\
             create_db_entry_for_new_instance(ctx,
                                              flavor,
                                              image,
                                              new_instance,
                                              security_group_map,
-                                             block_device_map,
+                                             block_device_mappings,
                                              1,
                                              1)
         # The API creates the instance in the BUIDING state, but this
@@ -639,7 +642,11 @@ class PowerVCCloudManager(manager.Manager):
             old_ref, instance_ref = db_api.instance_update_and_get_original(
                 ctx, local_instance.get('uuid'),
                 {'task_state': task_states.DELETING, 'progress': 0})
-            notifications.send_update(ctx, old_ref, instance_ref,
+            new_Inst = \
+                objects.Instance._from_db_object(ctx,
+                                                 objects.Instance(),
+                                                 instance_ref)
+            notifications.send_update(ctx, old_ref, new_Inst,
                                       service='powervc')
             LOG.debug(_("Sent a notification for the updated state of %s,"
                         "event type is %s")
@@ -660,12 +667,14 @@ class PowerVCCloudManager(manager.Manager):
                 objects.Instance._from_db_object(ctx,
                                                  objects.Instance(),
                                                  local_instance)
-        self.network_api.deallocate_for_instance(ctx, local_instance)
+        try:
+            self.network_api.deallocate_for_instance(ctx, local_instance)
+        except Exception:
+            LOG.warning(_("Deallocate_for_instance failed."))
 
         # Send notification about instance deletion due to sync operation
-        inst = instance_obj.Instance.get_by_uuid(ctx, local_instance['uuid'])
         compute.utils.notify_about_instance_usage(
-            self.notifier, ctx, inst, 'delete.sync', network_info={},
+            self.notifier, ctx, local_instance, 'delete.sync', network_info={},
             system_metadata={}, extra_usage_info={})
         LOG.debug(_('Send a notification about instance deletion of %s,'
                     'event type is %s')
