@@ -1,4 +1,4 @@
-# Copyright 2013, 2014 IBM Corp.
+# Copyright 2013, 2015 IBM Corp.
 import logging
 import exception
 import os
@@ -613,13 +613,25 @@ class Utils(object):
         if scg_list is not None:
             scg_storage_templates = {}
             for scg in scg_list:
+                boot_providers = scg.__dict__.get('boot_providers')
                 accessible_storage_templates = []
                 volume_types = scg.list_all_volume_types()
                 volume_type_ids = []
                 for vol_type in volume_types:
                     volume_type_ids.append(vol_type.__dict__.get("id"))
                 for storage_template in all_storage_templates:
-                    if(storage_template.__dict__.get("id") in volume_type_ids):
+                    st_dict = storage_template.__dict__
+                    st_specs = st_dict.get('extra_specs')
+                    sp_name = None
+                    if boot_providers and st_specs:
+                        sp_name_key = 'capabilities:volume_backend_name'
+                        sp_name = st_specs.get(sp_name_key)
+                    if sp_name and sp_name not in boot_providers:
+                        log_args = (storage_template, sp_name, boot_providers)
+                        LOG.info('volume type %s with storage provider %s is '
+                                 'not in boot provider list %s' % log_args)
+                        continue
+                    if(st_dict.get("id") in volume_type_ids):
                         accessible_storage_templates.append(storage_template)
                 scg_storage_templates[scg.id] = accessible_storage_templates
             return scg_storage_templates
