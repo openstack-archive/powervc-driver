@@ -2004,7 +2004,7 @@ class PowerVCCloudManager(manager.Manager):
                 try:
                     data = self.network_api.list_ports(context, **search_opts)
                 except Exception, e:
-                        LOG.error(_("_fix_instance_nw_info failed: %s") %
+                        LOG.debug(_("_fix_instance_nw_info failed: %s") %
                                   (e))
                         return
                 ports = data.get('ports', [])
@@ -2013,7 +2013,7 @@ class PowerVCCloudManager(manager.Manager):
                     try:
                         nets = self.network_api.get_all(context)
                     except Exception, e:
-                        LOG.error(_("_fix_instance_nw_info failed: %s") %
+                        LOG.debug(_("_fix_instance_nw_info failed: %s") %
                                   (e))
                         return
                     # Call this will trigger info_cache update,
@@ -2031,7 +2031,7 @@ class PowerVCCloudManager(manager.Manager):
                                                                   port_ids)
                         LOG.info("_fix_instance_nw_info suc:" + str(nw_info))
                     except Exception, e:
-                        LOG.error(_("_fix_instance_nw_info failed: %s") %
+                        LOG.debug(_("_fix_instance_nw_info failed: %s") %
                                   (e))
 
     def _get_instance_root_device_name(self, pvc_instance, db_instance):
