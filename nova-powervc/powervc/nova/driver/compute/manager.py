@@ -347,8 +347,9 @@ class PowerVCCloudManager(manager.Manager):
         flavor = self._get_flavor_from_instance(ctx, pvc_instance, db_instance)
 
         # Use the instance properties from PowerVC to be accurate
-        if pvc_instance.get('vcpus') is not None:
-            vcpus = int(math.ceil(float(pvc_instance.get('vcpus'))))
+        if pvc_instance.get('cpus') is not None:
+            # The flavor's 'vcpus' are mapped to PowerVC 'cpus' property
+            vcpus = int(pvc_instance.get('cpus'))
         else:
             vcpus = flavor.get('vcpus')
 
