@@ -95,6 +95,7 @@ class PowerVCCloudManager(manager.Manager):
         orig_ctx = nova.context.get_admin_context()
         orig_ctx.project_id = keystone.tenant_id
         orig_ctx.user_id = keystone.user_id
+        self.admin_context = orig_ctx
 
         ctx = ctx_delegate.context_dynamic_auth_token(orig_ctx, keystone)
         self.project_id = CONF.powervc.admin_tenant_name
@@ -669,7 +670,8 @@ class PowerVCCloudManager(manager.Manager):
                                                  objects.Instance(),
                                                  local_instance)
         try:
-            self.network_api.deallocate_for_instance(ctx, local_instance)
+            self.network_api.deallocate_for_instance(self.admin_context,
+                                                     local_instance)
         except Exception:
             LOG.warning(_("Deallocate_for_instance failed."))
 
@@ -2003,18 +2005,19 @@ class PowerVCCloudManager(manager.Manager):
                 search_opts = {'device_id': instance['uuid'],
                                'tenant_id': instance['project_id']}
                 try:
-                    data = self.network_api.list_ports(context, **search_opts)
+                    data = self.network_api.list_ports(self.admin_context,
+                                                       **search_opts)
                 except Exception, e:
-                        LOG.error(_("_fix_instance_nw_info failed: %s") %
+                        LOG.warning(_("_fix_instance_nw_info failed: %s") %
                                   (e))
                         return
                 ports = data.get('ports', [])
                 # If ports is not empty, should put that into network_info.
                 if ports:
                     try:
-                        nets = self.network_api.get_all(context)
+                        nets = self.network_api.get_all(self.admin_context)
                     except Exception, e:
-                        LOG.error(_("_fix_instance_nw_info failed: %s") %
+                        LOG.warning(_("_fix_instance_nw_info failed: %s") %
                                   (e))
                         return
                     # Call this will trigger info_cache update,
@@ -2025,14 +2028,15 @@ class PowerVCCloudManager(manager.Manager):
                     inst = instance_obj.Instance.get_by_uuid(context,
                                                              instance['uuid'])
                     try:
+                        admin_ctx = self.admin_context
                         nw_info = \
-                            self.network_api.get_instance_nw_info(context,
+                            self.network_api.get_instance_nw_info(admin_ctx,
                                                                   inst,
                                                                   nets,
                                                                   port_ids)
                         LOG.info("_fix_instance_nw_info suc:" + str(nw_info))
                     except Exception, e:
-                        LOG.error(_("_fix_instance_nw_info failed: %s") %
+                        LOG.warning(_("_fix_instance_nw_info failed: %s") %
                                   (e))
 
     def _get_instance_root_device_name(self, pvc_instance, db_instance):
