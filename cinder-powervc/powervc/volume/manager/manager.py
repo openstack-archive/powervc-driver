@@ -3,6 +3,7 @@
 # from cinderclient.v1 import client
 import cinder.db.sqlalchemy.models
 import sys
+import time
 import logging
 
 from oslo.config import cfg
@@ -738,6 +739,8 @@ class PowerVCCinderManager(service.Service):
         """
 
         pvc_volume_id = payload.get('volume_id')
+        # wait 15sec to avoid time window that will create duplicated volume
+        time.sleep(15)
 
         # If the volume already exists locally then ignore
         local_volume = self._get_local_volume_by_pvc_id(context, pvc_volume_id)
