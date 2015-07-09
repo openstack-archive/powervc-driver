@@ -500,6 +500,12 @@ class PowerVCCloudManager(manager.Manager):
                        "task_state": pvc_instance['OS-EXT-STS:task_state']}
         inst_obj.update(update_dict)
         inst_obj.save()
+        
+        # Update quota
+        quotas = objects.Quotas(ctx)
+        quotas.reserve(instances=1,
+                       cores=int.get("vcpus"), ram=int.get("memory_mb"))
+        quotas.commit()
         LOG.debug('created local db instance: %s for '
                   'powervc instance: %s' % (inst_obj, pvc_instance))
         self.sync_volume_attachment(ctx,
@@ -1584,6 +1590,13 @@ class PowerVCCloudManager(manager.Manager):
                                     to be synced.
         """
         self.sync_instances[powervc_instance_id] = True
+
+    def _remove_all_local_instance(self, context):
+        """A util method to remova all the local instance
+        """
+        local_instances = self._get_all_local_instances(context)
+        for local_instance in local_instances:
+            self._remove_local_instance(context, local_instance)
 
     def _remove_local_instance(self, context, local_instance,
                                force_delete=False):
