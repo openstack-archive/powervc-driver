@@ -4,7 +4,6 @@
 Doing PowerVC initialize work, including image, instance sync.
 """
 
-import math
 import time
 import sys
 from socket import inet_aton
@@ -506,6 +505,12 @@ class PowerVCCloudManager(manager.Manager):
                                     inst_obj)
 
         # Fix the network info.
+        # Update quota
+        quotas = objects.Quotas(ctx)
+        quotas.reserve(instances=1,
+                       cores=ins.get("vcpus"),
+                       ram=ins.get("memory_mb"))
+        quotas.commit()
         local_port_ids = self.driver._service.\
             set_device_id_on_port_by_pvc_instance_uuid(ctx,
                                                        inst_obj['uuid'],
