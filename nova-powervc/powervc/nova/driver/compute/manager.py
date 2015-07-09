@@ -4,7 +4,6 @@
 Doing PowerVC initialize work, including image, instance sync.
 """
 
-import math
 import time
 import sys
 from socket import inet_aton
@@ -500,6 +499,12 @@ class PowerVCCloudManager(manager.Manager):
                        "task_state": pvc_instance['OS-EXT-STS:task_state']}
         inst_obj.update(update_dict)
         inst_obj.save()
+
+        # Update quota
+        quotas = objects.Quotas(ctx)
+        quotas.reserve(instances=1,
+                       cores=int.get("vcpus"), ram=int.get("memory_mb"))
+        quotas.commit()
         LOG.debug('created local db instance: %s for '
                   'powervc instance: %s' % (inst_obj, pvc_instance))
         self.sync_volume_attachment(ctx,
@@ -1585,6 +1590,13 @@ class PowerVCCloudManager(manager.Manager):
         """
         self.sync_instances[powervc_instance_id] = True
 
+    def _remove_all_local_instance(self, context):
+        """A util method to remova all the local instance
+        """
+        local_instances = self._get_all_local_instances(context)
+        for local_instance in local_instances:
+            self._remove_local_instance(context, local_instance)
+
     def _remove_local_instance(self, context, local_instance,
                                force_delete=False):
         """Remove the local instance if it's not performing a task and
@@ -2009,7 +2021,7 @@ class PowerVCCloudManager(manager.Manager):
                                                        **search_opts)
                 except Exception, e:
                         LOG.warning(_("_fix_instance_nw_info failed: %s") %
-                                  (e))
+                                    (e))
                         return
                 ports = data.get('ports', [])
                 # If ports is not empty, should put that into network_info.
@@ -2018,7 +2030,7 @@ class PowerVCCloudManager(manager.Manager):
                         nets = self.network_api.get_all(self.admin_context)
                     except Exception, e:
                         LOG.warning(_("_fix_instance_nw_info failed: %s") %
-                                  (e))
+                                    (e))
                         return
                     # Call this will trigger info_cache update,
                     # which links instance with the port.
@@ -2037,7 +2049,7 @@ class PowerVCCloudManager(manager.Manager):
                         LOG.info("_fix_instance_nw_info suc:" + str(nw_info))
                     except Exception, e:
                         LOG.warning(_("_fix_instance_nw_info failed: %s") %
-                                  (e))
+                                    (e))
 
     def _get_instance_root_device_name(self, pvc_instance, db_instance):
         root_device_name = '/dev/sda'
