@@ -503,7 +503,7 @@ class PowerVCCloudManager(manager.Manager):
         # Update quota
         quotas = objects.Quotas(ctx)
         quotas.reserve(instances=1,
-                       cores=int.get("vcpus"), ram=int.get("memory_mb"))
+                       cores=ins.get("vcpus"), ram=ins.get("memory_mb"))
         quotas.commit()
         LOG.debug('created local db instance: %s for '
                   'powervc instance: %s' % (inst_obj, pvc_instance))
