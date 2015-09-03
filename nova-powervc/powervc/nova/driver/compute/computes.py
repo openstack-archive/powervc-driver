@@ -192,11 +192,15 @@ class ComputeServiceManager(object):
         if local_service is None:
             LOG.debug("local service not found for %s" % remote_service.host)
             return
-        if remote_service.state == "down" and local_service.started:
+        if (remote_service.state == "down" or
+            remote_service.hypervisor_state != "operating") \
+                and local_service.started:
             LOG.debug("Stopping remote service %s" % local_service.host)
             local_service.stop()
             return
-        if remote_service.state == "up" and not local_service.started:
+        if (remote_service.state == "up" and
+            remote_service.hypervisor_state == "operating") \
+                and not local_service.started:
             LOG.debug("Starting remote service %s" % local_service.host)
             local_service.start()
 

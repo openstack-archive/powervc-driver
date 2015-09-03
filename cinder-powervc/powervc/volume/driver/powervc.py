@@ -180,6 +180,7 @@ class PowerVCDriver(VolumeDriver):
         display_description = getattr(volume, 'display_description', None)
         volume_type_obj = getattr(volume, 'volume_type', None)
         metadatas = getattr(volume, 'volume_metadata', None)
+        multiattach = getattr(volume, 'multiattach', False)
         meta = {}
         if metadatas:
             # Use map() to get a list of 'key', 'value' tuple
@@ -200,7 +201,8 @@ class PowerVCDriver(VolumeDriver):
             display_description=display_description,
             metadata=meta,
             volume_type=getattr(volume_type_obj, 'id',
-                                None))
+                                None),
+            multiattach=multiattach)
 
         return volume_data_updates
 

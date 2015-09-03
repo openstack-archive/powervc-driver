@@ -158,6 +158,49 @@ class PVCVolumeManager(volumes.VolumeManager):
         return self._list("/volumes%s%s" % (detail, query_string),
                           "volumes")
 
+    def create(self, size, snapshot_id=None, source_volid=None,
+               display_name=None, display_description=None,
+               volume_type=None, user_id=None,
+               project_id=None, availability_zone=None,
+               metadata=None, imageRef=None, multiattach=False):
+        """
+        Creates a pvc volume with multiattach specified.
+
+        :param size: Size of volume in GB
+        :param snapshot_id: ID of the snapshot
+        :param display_name: Name of the volume
+        :param display_description: Description of the volume
+        :param volume_type: Type of volume
+        :param user_id: User id derived from context
+        :param project_id: Project id derived from context
+        :param availability_zone: Availability Zone to use
+        :param metadata: Optional metadata to set on volume creation
+        :param imageRef: reference to an image stored in glance
+        :param multiattach: if enable the multiattach
+        :rtype: :class:`Volume`
+        """
+
+        if metadata is None:
+            volume_metadata = {}
+        else:
+            volume_metadata = metadata
+
+        body = {'volume': {'size': size,
+                           'snapshot_id': snapshot_id,
+                           'display_name': display_name,
+                           'display_description': display_description,
+                           'volume_type': volume_type,
+                           'user_id': user_id,
+                           'project_id': project_id,
+                           'availability_zone': availability_zone,
+                           'status': "creating",
+                           'attach_status': "detached",
+                           'metadata': volume_metadata,
+                           'imageRef': imageRef,
+                           'source_volid': source_volid,
+                           'multiattach': multiattach
+                           }}
+        return self._create('/volumes', body, 'volume')
 
 class PVCStorageTemplateManager(volume_types.VolumeTypeManager):
     """

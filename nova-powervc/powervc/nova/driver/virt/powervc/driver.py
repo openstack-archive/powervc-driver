@@ -1298,31 +1298,33 @@ class PowerVCDriver(driver.ComputeDriver):
             return None
         info = hypervisor._info
 
-        local_gb = info["local_gb"]
+        local_gb = info.get("local_gb") or 0
         if 0 == int(local_gb):
-            local_gb = info["local_gb_used"]
+            local_gb = info.get("local_gb_used") or 0
         # avoid value too large to damage the hosting os
         m_size = CONF.powervc.max_host_disk_size
         local_gb = m_size if local_gb > m_size else local_gb
-        disk_available_least = info["disk_available_least"]
+        disk_available_least = info.get("disk_available_least") or 0
         disk_available_least = m_size if disk_available_least > m_size else\
             disk_available_least
 
-        vcpus = int(float(info["vcpus"]) - float(info["proc_units_reserved"]))
-        memory_mb = int(info["memory_mb"]) - int(info["memory_mb_reserved"])
+        p_u_r = float(info.get("proc_units_reserved") or 0)
+        vcpus = int(float(info.get("vcpus") or 0) - p_u_r)
+        m_m_r = int(info.get("memory_mb_reserved") or 0)
+        memory_mb = int(info.get("memory_mb") or 0) - m_m_r
         used_memory = info.get("memory_mb_used") or\
-            (memory_mb - int(info.get("free_ram_mb")))
+            (memory_mb - int(info.get("free_ram_mb") or 0))
 
         data = {'vcpus': vcpus,
-                'vcpus_used': info["vcpus_used"],
+                'vcpus_used': info.get("vcpus_used"),
                 'memory_mb': memory_mb,
                 'memory_mb_used': used_memory,
                 'local_gb': local_gb,
-                'local_gb_used': info["local_gb_used"],
+                'local_gb_used': info.get("local_gb_used") or 0,
                 'disk_available_least': disk_available_least,
-                'hypervisor_hostname': info["hypervisor_hostname"],
-                'hypervisor_type': info["hypervisor_type"],
-                'hypervisor_version': info["hypervisor_version"],
+                'hypervisor_hostname': info.get("hypervisor_hostname"),
+                'hypervisor_type': info.get("hypervisor_type"),
+                'hypervisor_version': info.get("hypervisor_version"),
                 'cpu_info': info["cpu_info"],
                 'supported_instances': jsonutils.dumps(
                     constants.POWERVC_SUPPORTED_INSTANCES)}

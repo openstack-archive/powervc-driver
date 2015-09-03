@@ -977,6 +977,7 @@ class PowerVCCinderManager(service.Service):
 
         try:
             db.volume_update(context, local_volume.get('id'), values)
+            self._update_volume_attachments(context, pvc_volume, local_volume)
             ret = True
         except Exception as e:
             ret = False
@@ -1065,7 +1066,8 @@ class PowerVCCinderManager(service.Service):
             return None
         else:
             try:
-                db.volume_create(context, values)
+                local_volume = db.volume_create(context, values)
+                self._update_volume_attachments(context, volume, local_volume)
             except Exception as e:
                 LOG.debug(_("Failed to create volume %s. Exception: %s")
                           % (str(values), str(e)))
@@ -1123,24 +1125,6 @@ class PowerVCCinderManager(service.Service):
                 if volume_type is not None:
                     volume_type_id = volume_type.get('id')
 
-        # Get attachment information
-        attachments = volume.get('attachments')
-#         attach_time = None
-        attach_status = None
-        attached_host = None
-        mountpoint = None
-        instance_uuid = None
-        if attachments is not None and len(attachments) > 0:
-            attach_status = 'attached'
-            attach = attachments[0]
-            attached_host = attach.get('host_name')
-            mountpoint = attach.get('device')
-            # Here instance_uuid also can be assigned metadata['instance_uuid']
-            # metadata['instance_uuid'] equal to attach['server_id']
-            instance_uuid = attach.get('server_id')
-
-        instance_uuid = self._get_local_instance_id(instance_uuid)
-
         bootable = 0
         if volume.get('bootable') == 'true':
             bootable = 1
@@ -1151,6 +1135,7 @@ class PowerVCCinderManager(service.Service):
             host = "%s@%s" % (CONF.host, constants.BACKEND_POWERVCDRIVER)
         disp_name = volume.get('display_name') or volume.get('name')
         LOG.debug(_("volume disp_name: %s") % disp_name)
+        multiattach = volume.get('multiattach', False) or False
         values = {'display_name': disp_name,
                   'display_description': volume.get('display_description'),
                   #        'volume_type_id': volume_type_id,
@@ -1165,16 +1150,74 @@ class PowerVCCinderManager(service.Service):
                   'metadata': metadata,
                   'project_id': project_id,
                   'user_id': user_id,
-                  'attached_host': attached_host,
-                  'mountpoint': mountpoint,
-                  'instance_uuid': instance_uuid,
-                  'attach_status': attach_status
+                  'multiattach': multiattach
                   }
 
         if(volume_type_id is not None):
             values['volume_type_id'] = volume_type_id
 
         return values
+
+    def _update_volume_attachments(self, context, pvc_volume, local_volume):
+        """
+        Add/Delete/Update volume attachments information which includes
+        attaching instance, mountpoint, volume id, etc.
+        Note that pvc driver passes pvc volume attachments' "attachment_id" to
+        db api, which will be set as local attachment_id.
+        """
+        # Get attachment information
+        attachments = pvc_volume.get('attachments')
+        pvc_att_list = []
+        for attachment in attachments:
+            pvc_att_id = attachment.get('attachment_id')
+            pvc_att_list.append(pvc_att_id)
+            try:
+                local_att = db.volume_attachment_get(context, pvc_att_id)
+                if local_att:
+                    # if found local attachments by pvc attachments'
+                    # attachment_id, then update
+                    self._update_volume_attachment(context, attachment,
+                                                   local_att.get('id'))
+            except:
+                # if no local attachment found, then insert a new one, which
+                # id maps to pvc attachments' attachment_id
+                self._insert_volume_attachment(context, pvc_att_id, attachment,
+                                               local_volume)
+        # Cleanup the local attachments
+        local_vid = local_volume.get('id')
+        attachments = db.volume_attachment_get_used_by_volume_id(context,
+                                                                 local_vid)
+        attachments_tbd = [att for att in attachments
+                           if att.get('id') not in pvc_att_list]
+        for attachment_tbd in attachments_tbd:
+            db.volume_detached(context, local_vid,
+                               attachment_tbd.get('id'))
+
+    def _insert_volume_attachment(self, context, pvc_att_id, pvc_attachment,
+                                  local_volume):
+        # set new local att id equal with pvc id to make the sync possible
+        local_att_id = pvc_att_id
+        pvc_instance_uuid = pvc_attachment.get('server_id')
+        local_instance_uuid = self._get_local_instance_id(pvc_instance_uuid)
+        mountpoint = pvc_attachment.get('device')
+        hostname = pvc_attachment.get('host_name')
+        values = {'id': local_att_id,
+                  'volume_id': local_volume.get('id'),
+                  'server_id': local_instance_uuid}
+        attachment = db.volume_attach(context, values)
+        db.volume_attached(context, attachment['id'],
+                           local_instance_uuid, hostname, mountpoint)
+
+    def _update_volume_attachment(self, context, pvc_attachment,
+                                  local_att_id):
+        mountpoint = pvc_attachment.get('device')
+        hostname = pvc_attachment.get('host_name')
+        pvc_instance_uuid = pvc_attachment.get('server_id')
+        local_instance_uuid = self._get_local_instance_id(pvc_instance_uuid)
+        values = {'server_id': local_instance_uuid,
+                  'host_name': hostname,
+                  'device': mountpoint}
+        db.volume_attachment_update(context, local_att_id, values)
 
     def _start_periodic_volume_sync(self, context):
         """

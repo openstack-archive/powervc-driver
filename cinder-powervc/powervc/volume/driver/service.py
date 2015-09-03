@@ -42,7 +42,7 @@ class PowerVCService(object):
                       display_name=None, display_description=None,
                       volume_type=None, user_id=None,
                       project_id=None, availability_zone=None,
-                      metadata=None, imageRef=None):
+                      metadata=None, imageRef=None, multiattach=False):
         """
         Creates a volume on powervc
         """
@@ -60,7 +60,8 @@ class PowerVCService(object):
                                                            project_id,
                                                            availability_zone,
                                                            {},
-                                                           imageRef)
+                                                           imageRef,
+                                                           multiattach)
 
         # update powervc uuid to db immediately to avoid duplicated
         # synchronization
@@ -281,9 +282,9 @@ class PowerVCService(object):
             if metaDataItem.key == constants.LOCAL_PVC_PREFIX + 'id':
                 pvc_volume_id = metaDataItem.value
                 break
-        else:
-            LOG.warning('Fail to get pvc_id %s' % volume_id)
-            raise exceptions.BadRequest
+            else:
+                LOG.warning('Fail to get pvc_id.')
+                raise exceptions.BadRequest
 
         LOG.debug('wait until PVC volume %s status to in-use', pvc_volume_id)
         FILPC = loopingcall.FixedIntervalLoopingCall
@@ -310,9 +311,9 @@ class PowerVCService(object):
             if metaDataItem.key == constants.LOCAL_PVC_PREFIX + 'id':
                 pvc_volume_id = metaDataItem.value
                 break
-        else:
-            LOG.warning('Fail to get pvc_id %s' % volume_id)
-            raise exceptions.BadRequest
+            else:
+                LOG.warning('Fail to get pvc_id')
+                raise exceptions.BadRequest
 
         LOG.debug('wait until PVC volume %s status to available',
                   pvc_volume_id)
