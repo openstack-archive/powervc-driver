@@ -666,6 +666,21 @@ class PowerVCCloudManager(manager.Manager):
             LOG.warning(_("Removing PowerVC instance %s in nova failed."),
                         local_instance.get('name'))
 
+        # Update quota
+        try:
+            dis_name = local_instance.get("display_name")
+            vcpus = local_instance.get("vcpus")
+            memory_mb = local_instance.get("memory_mb")
+            LOG.info(_("Start to deduct quota of vm: %s, cores: %s, ram: %s") %
+                     (dis_name, vcpus, memory_mb))
+            quotas = objects.Quotas(ctx)
+            quotas.reserve(instances=-1,
+                           cores=-vcpus,
+                           ram=-memory_mb)
+            quotas.commit()
+        except Exception as e:
+            LOG.warning(_("Decrease quota failed: %s") % str(e))
+
         # delete network resource
         # transfer db object to nova instance obj to meet latest community
         # change
