@@ -1,0 +1,8 @@
+Verified+2: Jenkins
+Code-Review+2: Jerry Cai <caimin@cn.ibm.com>
+Workflow+1: Jerry Cai <caimin@cn.ibm.com>
+Submitted-by: Jenkins
+Submitted-at: Wed, 09 Sep 2015 06:29:24 +0000
+Reviewed-on: https://review.openstack.org/221174
+Project: stackforge/powervc-driver
+Branch: refs/heads/master
