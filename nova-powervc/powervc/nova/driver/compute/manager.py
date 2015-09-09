@@ -501,10 +501,19 @@ class PowerVCCloudManager(manager.Manager):
         inst_obj.save()
 
         # Update quota
-        quotas = objects.Quotas(ctx)
-        quotas.reserve(instances=1,
-                       cores=ins.get("vcpus"), ram=ins.get("memory_mb"))
-        quotas.commit()
+        try:
+            dis_name = ins.get("display_name")
+            vcpus = ins.get("vcpus")
+            memory_mb = ins.get("memory_mb")
+            quotas = objects.Quotas(ctx)
+            quotas.reserve(instances=1, cores=vcpus, ram=memory_mb)
+            LOG.info(_("Start to deduct quota of vm: %s, cores: %s, ram: %s") %
+                     (dis_name, vcpus, memory_mb))
+            quotas.commit()
+        except Exception as e:
+                LOG.debug(_("Quota exceeded for instance: %s. Exception: %s")
+                          % (dis_name, str(e)))
+
         LOG.debug('created local db instance: %s for '
                   'powervc instance: %s' % (inst_obj, pvc_instance))
         self.sync_volume_attachment(ctx,

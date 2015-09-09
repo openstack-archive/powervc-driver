@@ -113,7 +113,7 @@ class PowerVCDriver(driver.ComputeDriver):
         :num_cpu:         (int) the number of virtual CPUs for the domain
         :cpu_time:        (int) the CPU time used in nanoseconds
         """
-        LOG.debug(_("get_info() Enter: %s" % str(instance)))
+        LOG.debug(_("get_info() Enter: %s") % str(instance))
         lpar_instance = None
         try:
             pvc_id = self._get_pvcid_from_metadata(instance)
@@ -125,22 +125,21 @@ class PowerVCDriver(driver.ComputeDriver):
                 pvc_id = self._get_pvcid_from_metadata(db_instances[0])
             LOG.debug(_("pvc_id: %s" % str(pvc_id)))
             lpar_instance = self.get_instance(pvc_id)
-            LOG.debug(_("Found instance: %s" % str(lpar_instance)))
+            LOG.debug(_("Found instance: %s") % str(lpar_instance))
         except Exception:
             if pvc_id is None:
                 LOG.info(_("Can not get the pvc_id from the"
-                           " instance %s." % instance['name']))
+                           " instance %s.") % instance['name'])
             else:
                 LOG.info(_("Can not get the PowerVC"
-                           " instance %s." % pvc_id))
-            raise exception.NotFound
+                           " instance %s.") % pvc_id)
+            return pvc_vm_states.InstanceInfo(state=0)
 
         if(lpar_instance is None):
-            LOG.info(_("Can not get the PowerVC"
-                       " instance %s." % pvc_id))
-            raise exception.NotFound
+            LOG.debug(_("Can not get the PowerVC instance %s, will delete it"
+                      " in the next sync.") % pvc_id)
+            return pvc_vm_states.InstanceInfo(state=0)
 
-        LOG.debug(_("get_info() Exit"))
         max_mem = self._int_or_none(lpar_instance._info.get('max_memory_mb'))
         mem = self._int_or_none(lpar_instance._info.get('memory_mb'))
         num_cpu = self._int_or_none(lpar_instance._info.get('cpus'))
