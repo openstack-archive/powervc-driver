@@ -775,7 +775,8 @@ class PowerVCCinderManager(service.Service):
         :param: event_type message event type
         :param: payload The AMQP message sent from OpenStack (dictionary)
         """
-
+        # wait 15sec to avoid time window that will duplicated delete volume
+        time.sleep(15)
         pvc_volume_id = payload.get('volume_id')
 
         # If the volume does not already exist locally then ignore
@@ -997,23 +998,26 @@ class PowerVCCinderManager(service.Service):
         """
         ret = False
         volume_id = local_volume.get('id')
-        volume_name = local_volume.get('name')
+        volume_name = local_volume.get('display_name')
         volume_size = local_volume.get('size')
         if volume_id is None:
             LOG.debug('Volume id is none and ignore it')
             return ret
 
         try:
-            db.volume_destroy(context, volume_id)
-            # update the quotas
-            reserve_opts = {'volumes': -1,
-                            'gigabytes': -volume_size}
-            reservations = QUOTAS.reserve(context,
-                                          **reserve_opts)
-            LOG.info(_("Start to deduct quota of volume: %s, size: %s") %
-                     (volume_name, volume_size))
-            QUOTAS.commit(context, reservations)
-            ret = True
+            # check first if the volume to be deleted existed.
+            volume_to_be_deleted = db.volume_get(context, volume_id)
+            if volume_to_be_deleted:
+                db.volume_destroy(context, volume_id)
+                # update the quotas
+                reserve_opts = {'volumes': -1,
+                                'gigabytes': -volume_size}
+                reservations = QUOTAS.reserve(context,
+                                              **reserve_opts)
+                LOG.info(_("Start to deduct quota of volume: %s, size: %s") %
+                         (volume_name, volume_size))
+                QUOTAS.commit(context, reservations)
+                ret = True
         except Exception as e:
             ret = False
             LOG.debug(_("Failed to delete local volume %s, Exception: %s")
