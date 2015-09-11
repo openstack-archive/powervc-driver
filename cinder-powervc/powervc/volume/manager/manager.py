@@ -3,6 +3,7 @@
 # from cinderclient.v1 import client
 import cinder.db.sqlalchemy.models
 import sys
+import time
 import logging
 
 from oslo.config import cfg
@@ -10,6 +11,7 @@ from cinder import db
 from cinder import context
 from cinder import service as taskservice
 from cinder.openstack.common import service
+from cinder import quota
 from oslo_log import log
 from powervc.common import config
 from powervc.common.gettextutils import _
@@ -22,6 +24,7 @@ from powervc.common import messaging
 
 CONF = config.CONF
 LOG = log.getLogger(__name__)
+QUOTAS = quota.QUOTAS
 
 volume_sync_opts = [
     cfg.IntOpt('volume_sync_interval',
@@ -738,6 +741,8 @@ class PowerVCCinderManager(service.Service):
         """
 
         pvc_volume_id = payload.get('volume_id')
+        # wait 15sec to avoid time window that will create duplicated volume
+        time.sleep(15)
 
         # If the volume already exists locally then ignore
         local_volume = self._get_local_volume_by_pvc_id(context, pvc_volume_id)
@@ -770,7 +775,8 @@ class PowerVCCinderManager(service.Service):
         :param: event_type message event type
         :param: payload The AMQP message sent from OpenStack (dictionary)
         """
-
+        # wait 15sec to avoid time window that will duplicated delete volume
+        time.sleep(15)
         pvc_volume_id = payload.get('volume_id')
 
         # If the volume does not already exist locally then ignore
@@ -779,7 +785,7 @@ class PowerVCCinderManager(service.Service):
             LOG.debug('Volume is non-existent locally, ignore delete handle')
             return
 
-        self._unregister_volumes(context, local_volume.get('id'))
+        self._unregister_volumes(context, local_volume)
 
     def _handle_powervc_volume_update(self,
                                       context=None,
@@ -974,6 +980,7 @@ class PowerVCCinderManager(service.Service):
 
         try:
             db.volume_update(context, local_volume.get('id'), values)
+            self._update_volume_attachments(context, pvc_volume, local_volume)
             ret = True
         except Exception as e:
             ret = False
@@ -982,7 +989,7 @@ class PowerVCCinderManager(service.Service):
 
         return ret
 
-    def _unregister_volumes(self, context, volume_id):
+    def _unregister_volumes(self, context, local_volume):
         """
         Unregister the volume from the local database. This does not use
         the Cinder API which would send an RPC to have the instance deleted.
@@ -990,14 +997,27 @@ class PowerVCCinderManager(service.Service):
         own notifications locally and remove it from the database.
         """
         ret = False
-
+        volume_id = local_volume.get('id')
+        volume_name = local_volume.get('display_name')
+        volume_size = local_volume.get('size')
         if volume_id is None:
             LOG.debug('Volume id is none and ignore it')
             return ret
 
         try:
-            db.volume_destroy(context, volume_id)
-            ret = True
+            # check first if the volume to be deleted existed.
+            volume_to_be_deleted = db.volume_get(context, volume_id)
+            if volume_to_be_deleted:
+                db.volume_destroy(context, volume_id)
+                # update the quotas
+                reserve_opts = {'volumes': -1,
+                                'gigabytes': -volume_size}
+                reservations = QUOTAS.reserve(context,
+                                              **reserve_opts)
+                LOG.info(_("Start to deduct quota of volume: %s, size: %s") %
+                         (volume_name, volume_size))
+                QUOTAS.commit(context, reservations)
+                ret = True
         except Exception as e:
             ret = False
             LOG.debug(_("Failed to delete local volume %s, Exception: %s")
@@ -1062,7 +1082,19 @@ class PowerVCCinderManager(service.Service):
             return None
         else:
             try:
-                db.volume_create(context, values)
+                local_volume = db.volume_create(context, values)
+                # update the instances that attach this volume
+                self._update_volume_attachments(context, volume, local_volume)
+                # update the quotas
+                volume_name = local_volume.get('name')
+                volume_size = local_volume.get('size')
+                reserve_opts = {'volumes': 1,
+                                'gigabytes': volume_size}
+                LOG.info(_("Start to reserve quota of volume: %s, size: %s") %
+                         (volume_name, volume_size))
+                reservations = QUOTAS.reserve(context,
+                                              **reserve_opts)
+                QUOTAS.commit(context, reservations)
             except Exception as e:
                 LOG.debug(_("Failed to create volume %s. Exception: %s")
                           % (str(values), str(e)))
@@ -1120,24 +1152,6 @@ class PowerVCCinderManager(service.Service):
                 if volume_type is not None:
                     volume_type_id = volume_type.get('id')
 
-        # Get attachment information
-        attachments = volume.get('attachments')
-#         attach_time = None
-        attach_status = None
-        attached_host = None
-        mountpoint = None
-        instance_uuid = None
-        if attachments is not None and len(attachments) > 0:
-            attach_status = 'attached'
-            attach = attachments[0]
-            attached_host = attach.get('host_name')
-            mountpoint = attach.get('device')
-            # Here instance_uuid also can be assigned metadata['instance_uuid']
-            # metadata['instance_uuid'] equal to attach['server_id']
-            instance_uuid = attach.get('server_id')
-
-        instance_uuid = self._get_local_instance_id(instance_uuid)
-
         bootable = 0
         if volume.get('bootable') == 'true':
             bootable = 1
@@ -1148,6 +1162,7 @@ class PowerVCCinderManager(service.Service):
             host = "%s@%s" % (CONF.host, constants.BACKEND_POWERVCDRIVER)
         disp_name = volume.get('display_name') or volume.get('name')
         LOG.debug(_("volume disp_name: %s") % disp_name)
+        multiattach = volume.get('multiattach', False) or False
         values = {'display_name': disp_name,
                   'display_description': volume.get('display_description'),
                   #        'volume_type_id': volume_type_id,
@@ -1162,16 +1177,74 @@ class PowerVCCinderManager(service.Service):
                   'metadata': metadata,
                   'project_id': project_id,
                   'user_id': user_id,
-                  'attached_host': attached_host,
-                  'mountpoint': mountpoint,
-                  'instance_uuid': instance_uuid,
-                  'attach_status': attach_status
+                  'multiattach': multiattach
                   }
 
         if(volume_type_id is not None):
             values['volume_type_id'] = volume_type_id
 
         return values
+
+    def _update_volume_attachments(self, context, pvc_volume, local_volume):
+        """
+        Add/Delete/Update volume attachments information which includes
+        attaching instance, mountpoint, volume id, etc.
+        Note that pvc driver passes pvc volume attachments' "attachment_id" to
+        db api, which will be set as local attachment_id.
+        """
+        # Get attachment information
+        attachments = pvc_volume.get('attachments')
+        pvc_att_list = []
+        for attachment in attachments:
+            pvc_att_id = attachment.get('attachment_id')
+            pvc_att_list.append(pvc_att_id)
+            try:
+                local_att = db.volume_attachment_get(context, pvc_att_id)
+                if local_att:
+                    # if found local attachments by pvc attachments'
+                    # attachment_id, then update
+                    self._update_volume_attachment(context, attachment,
+                                                   local_att.get('id'))
+            except:
+                # if no local attachment found, then insert a new one, which
+                # id maps to pvc attachments' attachment_id
+                self._insert_volume_attachment(context, pvc_att_id, attachment,
+                                               local_volume)
+        # Cleanup the local attachments
+        local_vid = local_volume.get('id')
+        attachments = db.volume_attachment_get_used_by_volume_id(context,
+                                                                 local_vid)
+        attachments_tbd = [att for att in attachments
+                           if att.get('id') not in pvc_att_list]
+        for attachment_tbd in attachments_tbd:
+            db.volume_detached(context, local_vid,
+                               attachment_tbd.get('id'))
+
+    def _insert_volume_attachment(self, context, pvc_att_id, pvc_attachment,
+                                  local_volume):
+        # set new local att id equal with pvc id to make the sync possible
+        local_att_id = pvc_att_id
+        pvc_instance_uuid = pvc_attachment.get('server_id')
+        local_instance_uuid = self._get_local_instance_id(pvc_instance_uuid)
+        mountpoint = pvc_attachment.get('device')
+        hostname = pvc_attachment.get('host_name')
+        values = {'id': local_att_id,
+                  'volume_id': local_volume.get('id'),
+                  'server_id': local_instance_uuid}
+        attachment = db.volume_attach(context, values)
+        db.volume_attached(context, attachment['id'],
+                           local_instance_uuid, hostname, mountpoint)
+
+    def _update_volume_attachment(self, context, pvc_attachment,
+                                  local_att_id):
+        mountpoint = pvc_attachment.get('device')
+        hostname = pvc_attachment.get('host_name')
+        pvc_instance_uuid = pvc_attachment.get('server_id')
+        local_instance_uuid = self._get_local_instance_id(pvc_instance_uuid)
+        values = {'server_id': local_instance_uuid,
+                  'host_name': hostname,
+                  'device': mountpoint}
+        db.volume_attachment_update(context, local_att_id, values)
 
     def _start_periodic_volume_sync(self, context):
         """
@@ -1250,7 +1323,7 @@ class PowerVCCinderManager(service.Service):
                                              local_volume,
                                              pvc_volumes):
                 # If it is not valid in pvc, also delete form the local.
-                self._unregister_volumes(context, local_volume.get('id'))
+                self._unregister_volumes(context, local_volume)
                 count_deleted_volumes += 1
 
         # Try delete unused volume-types

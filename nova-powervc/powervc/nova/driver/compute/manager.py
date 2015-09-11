@@ -94,6 +94,7 @@ class PowerVCCloudManager(manager.Manager):
         orig_ctx = nova.context.get_admin_context()
         orig_ctx.project_id = keystone.tenant_id
         orig_ctx.user_id = keystone.user_id
+        self.admin_context = orig_ctx
 
         ctx = ctx_delegate.context_dynamic_auth_token(orig_ctx, keystone)
         self.project_id = CONF.powervc.admin_tenant_name
@@ -498,6 +499,21 @@ class PowerVCCloudManager(manager.Manager):
                        "task_state": pvc_instance['OS-EXT-STS:task_state']}
         inst_obj.update(update_dict)
         inst_obj.save()
+
+        # Update quota
+        try:
+            dis_name = ins.get("display_name")
+            vcpus = ins.get("vcpus")
+            memory_mb = ins.get("memory_mb")
+            quotas = objects.Quotas(ctx)
+            quotas.reserve(instances=1, cores=vcpus, ram=memory_mb)
+            LOG.info(_("Start to deduct quota of vm: %s, cores: %s, ram: %s") %
+                     (dis_name, vcpus, memory_mb))
+            quotas.commit()
+        except Exception as e:
+                LOG.debug(_("Quota exceeded for instance: %s. Exception: %s")
+                          % (dis_name, str(e)))
+
         LOG.debug('created local db instance: %s for '
                   'powervc instance: %s' % (inst_obj, pvc_instance))
         self.sync_volume_attachment(ctx,
@@ -505,12 +521,6 @@ class PowerVCCloudManager(manager.Manager):
                                     inst_obj)
 
         # Fix the network info.
-        # Update quota
-        quotas = objects.Quotas(ctx)
-        quotas.reserve(instances=1,
-                       cores=ins.get("vcpus"),
-                       ram=ins.get("memory_mb"))
-        quotas.commit()
         local_port_ids = self.driver._service.\
             set_device_id_on_port_by_pvc_instance_uuid(ctx,
                                                        inst_obj['uuid'],
@@ -665,6 +675,21 @@ class PowerVCCloudManager(manager.Manager):
             LOG.warning(_("Removing PowerVC instance %s in nova failed."),
                         local_instance.get('name'))
 
+        # Update quota
+        try:
+            dis_name = local_instance.get("display_name")
+            vcpus = local_instance.get("vcpus")
+            memory_mb = local_instance.get("memory_mb")
+            LOG.info(_("Start to deduct quota of vm: %s, cores: %s, ram: %s") %
+                     (dis_name, vcpus, memory_mb))
+            quotas = objects.Quotas(ctx)
+            quotas.reserve(instances=-1,
+                           cores=-vcpus,
+                           ram=-memory_mb)
+            quotas.commit()
+        except Exception as e:
+            LOG.warning(_("Decrease quota failed: %s") % str(e))
+
         # delete network resource
         # transfer db object to nova instance obj to meet latest community
         # change
@@ -674,7 +699,8 @@ class PowerVCCloudManager(manager.Manager):
                                                  objects.Instance(),
                                                  local_instance)
         try:
-            self.network_api.deallocate_for_instance(ctx, local_instance)
+            self.network_api.deallocate_for_instance(self.admin_context,
+                                                     local_instance)
         except Exception:
             LOG.warning(_("Deallocate_for_instance failed."))
 
@@ -1588,6 +1614,13 @@ class PowerVCCloudManager(manager.Manager):
         """
         self.sync_instances[powervc_instance_id] = True
 
+    def _remove_all_local_instance(self, context):
+        """A util method to remova all the local instance
+        """
+        local_instances = self._get_all_local_instances(context)
+        for local_instance in local_instances:
+            self._remove_local_instance(context, local_instance)
+
     def _remove_local_instance(self, context, local_instance,
                                force_delete=False):
         """Remove the local instance if it's not performing a task and
@@ -2008,19 +2041,20 @@ class PowerVCCloudManager(manager.Manager):
                 search_opts = {'device_id': instance['uuid'],
                                'tenant_id': instance['project_id']}
                 try:
-                    data = self.network_api.list_ports(context, **search_opts)
+                    data = self.network_api.list_ports(self.admin_context,
+                                                       **search_opts)
                 except Exception, e:
-                        LOG.error(_("_fix_instance_nw_info failed: %s") %
-                                  (e))
+                        LOG.warning(_("_fix_instance_nw_info failed: %s") %
+                                    (e))
                         return
                 ports = data.get('ports', [])
                 # If ports is not empty, should put that into network_info.
                 if ports:
                     try:
-                        nets = self.network_api.get_all(context)
+                        nets = self.network_api.get_all(self.admin_context)
                     except Exception, e:
-                        LOG.error(_("_fix_instance_nw_info failed: %s") %
-                                  (e))
+                        LOG.warning(_("_fix_instance_nw_info failed: %s") %
+                                    (e))
                         return
                     # Call this will trigger info_cache update,
                     # which links instance with the port.
@@ -2030,15 +2064,16 @@ class PowerVCCloudManager(manager.Manager):
                     inst = instance_obj.Instance.get_by_uuid(context,
                                                              instance['uuid'])
                     try:
+                        admin_ctx = self.admin_context
                         nw_info = \
-                            self.network_api.get_instance_nw_info(context,
+                            self.network_api.get_instance_nw_info(admin_ctx,
                                                                   inst,
                                                                   nets,
                                                                   port_ids)
                         LOG.info("_fix_instance_nw_info suc:" + str(nw_info))
                     except Exception, e:
-                        LOG.error(_("_fix_instance_nw_info failed: %s") %
-                                  (e))
+                        LOG.warning(_("_fix_instance_nw_info failed: %s") %
+                                    (e))
 
     def _get_instance_root_device_name(self, pvc_instance, db_instance):
         root_device_name = '/dev/sda'
