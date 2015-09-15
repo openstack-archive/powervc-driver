@@ -52,6 +52,9 @@ STATUS_AVAILABLE = 'available'
 STATUS_ERROR = 'error'
 STATUS_CREATING = 'creating'
 STATUS_DELETING = 'deleting'
+STATUS_INUSE = 'in-use'
+STATUS_ATTACHING = 'attaching'
+STATUS_DETACHING = 'detaching'
 
 # multi-backends configuration option for PowerVCDriver
 BACKEND_POWERVCDRIVER = "powervcdriver"

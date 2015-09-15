@@ -492,6 +492,20 @@ class PowerVCCloudManager(manager.Manager):
             task_state=pvc_instance['OS-EXT-STS:task_state'])
         LOG.debug('created local db instance: %s for '
                   'powervc instance: %s' % (db_instance, pvc_instance))
+        # Update quota
+        try:
+            dis_name = ins.get("display_name")
+            vcpus = ins.get("vcpus")
+            memory_mb = ins.get("memory_mb")
+            quotas = objects.Quotas(ctx)
+            quotas.reserve(instances=1, cores=vcpus, ram=memory_mb)
+            LOG.info(_("Start to consume quota of vm: %s, cores: %s, ram: %s") %
+                     (dis_name, vcpus, memory_mb))
+            quotas.commit()
+        except Exception as e:
+                LOG.debug(_("Quota exceeded for instance: %s. Exception: %s")
+                          % (dis_name, str(e)))
+
         self.sync_volume_attachment(ctx,
                                     ins['metadata'][constants.PVC_ID],
                                     db_instance)
@@ -644,6 +658,21 @@ class PowerVCCloudManager(manager.Manager):
         except Exception:
             LOG.warning(_("Removing PowerVC instance %s in nova failed."),
                         local_instance.get('name'))
+
+        # Update quota
+        try:
+            dis_name = local_instance.get("display_name")
+            vcpus = local_instance.get("vcpus")
+            memory_mb = local_instance.get("memory_mb")
+            LOG.info(_("Start to deduct quota of vm: %s, cores: %s, ram: %s") %
+                     (dis_name, vcpus, memory_mb))
+            quotas = objects.Quotas(ctx)
+            quotas.reserve(instances=-1,
+                           cores=-vcpus,
+                           ram=-memory_mb)
+            quotas.commit()
+        except Exception as e:
+            LOG.warning(_("Decrease quota failed: %s") % str(e))
 
         # delete network resource
         # transfer db object to nova instance obj to meet latest community

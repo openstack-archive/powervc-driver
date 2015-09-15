@@ -17,6 +17,8 @@ LOG = logging.getLogger(__name__)
 
 CONF = config.CONF
 DEFAULT_TTL = 600
+reload(sys)
+sys.setdefaultencoding('UTF8')
 
 
 class TimeLivedCache(object):

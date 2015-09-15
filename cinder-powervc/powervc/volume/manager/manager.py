@@ -12,6 +12,7 @@ from cinder import context
 from cinder import service as taskservice
 from cinder.openstack.common import service
 from cinder.openstack.common import log
+from cinder import quota
 from powervc.common import config
 from powervc.common.gettextutils import _
 from powervc.volume.manager import constants
@@ -23,6 +24,7 @@ from powervc.common import messaging
 
 CONF = config.CONF
 LOG = log.getLogger(__name__)
+QUOTAS = quota.QUOTAS
 
 volume_sync_opts = [
     cfg.IntOpt('volume_sync_interval',
@@ -773,7 +775,8 @@ class PowerVCCinderManager(service.Service):
         :param: event_type message event type
         :param: payload The AMQP message sent from OpenStack (dictionary)
         """
-
+        # wait 15sec to avoid time window that will duplicated delete volume
+        time.sleep(15)
         pvc_volume_id = payload.get('volume_id')
 
         # If the volume does not already exist locally then ignore
@@ -782,7 +785,7 @@ class PowerVCCinderManager(service.Service):
             LOG.debug('Volume is non-existent locally, ignore delete handle')
             return
 
-        self._unregister_volumes(context, local_volume.get('id'))
+        self._unregister_volumes(context, local_volume)
 
     def _handle_powervc_volume_update(self,
                                       context=None,
@@ -966,7 +969,7 @@ class PowerVCCinderManager(service.Service):
 
         return ret
 
-    def _unregister_volumes(self, context, volume_id):
+    def _unregister_volumes(self, context, local_volume):
         """
         Unregister the volume from the local database. This does not use
         the Cinder API which would send an RPC to have the instance deleted.
@@ -974,14 +977,27 @@ class PowerVCCinderManager(service.Service):
         own notifications locally and remove it from the database.
         """
         ret = False
-
+        volume_id = local_volume.get('id')
+        volume_name = local_volume.get('display_name')
+        volume_size = local_volume.get('size')
         if volume_id is None:
             LOG.debug('Volume id is none and ignore it')
             return ret
 
         try:
-            db.volume_destroy(context, volume_id)
-            ret = True
+            # check first if the volume to be deleted existed.
+            volume_to_be_deleted = db.volume_get(context, volume_id)
+            if volume_to_be_deleted:
+                db.volume_destroy(context, volume_id)
+                # update the quotas
+                reserve_opts = {'volumes': -1,
+                                'gigabytes': -volume_size}
+                reservations = QUOTAS.reserve(context,
+                                              **reserve_opts)
+                LOG.info(_("Start to deduct quota of volume: %s, size: %s") %
+                         (volume_name, volume_size))
+                QUOTAS.commit(context, reservations)
+                ret = True
         except Exception as e:
             ret = False
             LOG.debug(_("Failed to delete local volume %s, Exception: %s")
@@ -1042,7 +1058,17 @@ class PowerVCCinderManager(service.Service):
             return None
         else:
             try:
-                db.volume_create(context, values)
+                local_volume = db.volume_create(context, values)
+                # update the instances that attach this volume
+                volume_name = local_volume.get('name')
+                volume_size = local_volume.get('size')
+                reserve_opts = {'volumes': 1,
+                                'gigabytes': volume_size}
+                LOG.info(_("Start to reserve quota of volume: %s, size: %s") %
+                         (volume_name, volume_size))
+                reservations = QUOTAS.reserve(context,
+                                              **reserve_opts)
+                QUOTAS.commit(context, reservations)
             except Exception as e:
                 LOG.debug(_("Failed to create volume %s. Exception: %s")
                           % (str(values), str(e)))
@@ -1230,7 +1256,7 @@ class PowerVCCinderManager(service.Service):
                                              local_volume,
                                              pvc_volumes):
                 # If it is not valid in pvc, also delete form the local.
-                self._unregister_volumes(context, local_volume.get('id'))
+                self._unregister_volumes(context, local_volume)
                 count_deleted_volumes += 1
 
         # Try delete unused volume-types
