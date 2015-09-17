@@ -1241,9 +1241,9 @@ class PowerVCCinderManager(service.Service):
         hostname = pvc_attachment.get('host_name')
         pvc_instance_uuid = pvc_attachment.get('server_id')
         local_instance_uuid = self._get_local_instance_id(pvc_instance_uuid)
-        values = {'server_id': local_instance_uuid,
-                  'host_name': hostname,
-                  'device': mountpoint}
+        values = {'instance_uuid': local_instance_uuid,
+                  'attached_host': hostname,
+                  'mountpoint': mountpoint}
         db.volume_attachment_update(context, local_att_id, values)
 
     def _start_periodic_volume_sync(self, context):
@@ -1382,7 +1382,8 @@ class PowerVCCinderManager(service.Service):
         # lazy import factory to avoid connect to env when load manager
         from powervc.common.client import factory
         novaclient = factory.LOCAL.get_client(str(SERVICE_TYPES.compute))
-        local_instances = novaclient.manager.list_all_servers()
+        local_instances = novaclient.manager.list_all_servers(
+            search_opts={'all_tenants': 1})
         for inst in local_instances:
             metadata = inst._info['metadata']
             meta_pvc_id = None
