@@ -188,16 +188,27 @@ class ComputeServiceManager(object):
         to the remote_service.  This method assumes the local
         service already exists.
         """
-        local_service = self.services[remote_service.host]
+        hostname = remote_service.host
+        local_service = self.services[hostname]
         if local_service is None:
-            LOG.debug("local service not found for %s" % remote_service.host)
+            LOG.debug("local service not found for %s" % hostname)
             return
-        if remote_service.state == "down" and local_service.started:
-            LOG.debug("Stopping remote service %s" % local_service.host)
+        hypervisor_state = self._get_hypervisor_state_by_hostname(hostname)
+        if (remote_service.state == "down" or hypervisor_state != "operating")\
+                and local_service.started:
+            LOG.info("Stopping remote service %s, as hypervisor state is %s,"
+                     "service state is %s." % (local_service.host,
+                                               hypervisor_state,
+                                               remote_service.state))
             local_service.stop()
             return
-        if remote_service.state == "up" and not local_service.started:
+        if (remote_service.state == "up" and hypervisor_state == "operating")\
+                and not local_service.started:
             LOG.debug("Starting remote service %s" % local_service.host)
+            LOG.info("Starting remote service %s, as hypervisor state is %s,"
+                     "service state is %s." % (local_service.host,
+                                               hypervisor_state,
+                                               remote_service.state))
             local_service.start()
 
     def _stop_local_services(self):
@@ -238,3 +249,10 @@ class ComputeServiceManager(object):
                 filtered_services.append(remote_service)
 
         return filtered_services
+
+    def _get_hypervisor_state_by_hostname(self, hostname):
+        hypervisor_state = self.driver._service._client.\
+            hypervisors.get_hypervisor_state(hostname)
+        LOG.info("Get hypervisor state of '%s' is : '%s'." %
+                 (hostname, hypervisor_state))
+        return hypervisor_state
