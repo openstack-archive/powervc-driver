@@ -40,6 +40,23 @@ class PVCHypervisorManager(hypervisors.HypervisorManager):
     feature to get/set the hypervisor status and maintenance mode.
     """
 
+    def get_hypervisor_state(self, hostname):
+        """Get the hypervisor_state by hostname
+        """
+        hypervisors = self.search(hostname)
+
+        if not hypervisors[0] or not self.get(hypervisors[0]):
+            raise exc.HTTPNotFound(_("No hypervisor matching '%s' could be"
+                                     " found.") % hostname)
+
+        try:
+            hypervisor = self.get(hypervisors[0])
+        except Exception as ex:
+            raise exc.HTTPNotFound(explanation=six.text_type(ex))
+
+        hypervisor_state = getattr(hypervisor, "hypervisor_state", "operating")
+        return hypervisor_state
+
     def get_host_maintenance_mode(self, hostname):
         """Get host maintenance mode by host name from PowerVC driver
         """

@@ -1291,7 +1291,8 @@ class PowerVCService(object):
         Cache the volume data during the sync instances.
         """
         cache_volume = {}
-        local_volumes = self._cinderclient.volumes.list_all_volumes()
+        local_volumes = self._cinderclient.volumes.list_all_volumes(
+            search_opts={'all_tenants': 1})
 
         for local_volume in local_volumes:
             metadata = getattr(local_volume, 'metadata', '')

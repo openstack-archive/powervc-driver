@@ -194,7 +194,8 @@ class Client(neutron_client_bindings.Client):
         if not self.nova:
             self.nova = factory.LOCAL.get_client(str(SERVICE_TYPES.compute))
         try:
-            local_instances = self.nova.manager.list_all_servers()
+            local_instances = self.nova.manager.list_all_servers(
+                search_opts={'all_tenants': 1})
         except Exception as e:
             LOG.exception(_("Exception occurred getting servers: %s"), e)
             return vm_map
