@@ -524,7 +524,16 @@ class PowerVCNeutronAgent(object):
         # If HyperV/KVM or Lock Port, reserve IP address in PowerVC
         if device_id == constants.POWERVC_LOCKDEVICE_ID\
                 or not self.local.is_instance_on_power(device_id):
-            new_port = self.pvc.create_port(port)
+            # RTC 211682 - ip locked issue.
+            # Nova booting a vm and neutron creating new port would race the port.
+            # If the neutron creates the port before booting vm,
+            # the booting process would be failed as ip/port locked.
+            time.sleep(15)
+            try:
+                new_port = self.pvc.create_port(port)
+            except Exception, msg:
+                LOG.warn(_("Try to create a port which has been used in booting vm. %s"), msg)
+            # RTC 211682 - end
             if new_port:
                 self.db.set_port_pvc_id(db_port, new_port.get('id'))
 
