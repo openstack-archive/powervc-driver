@@ -1,4 +1,4 @@
-# Copyright 2013, 2014 IBM Corp.
+# Copyright 2013, 2015 IBM Corp.
 
 """
 Doing PowerVC initialize work, including image, instance sync.
