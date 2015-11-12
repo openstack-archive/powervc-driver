@@ -186,7 +186,14 @@ class FlavorSync():
         flavorid = self.prefix + flavor.id
         memory = flavor.ram
         vcpus = flavor.vcpus
-        root_gb = flavor.disk
+        '''
+        RTC 213328 - flavor is sync from PowerVC. 
+        The disk attribute of flavor is set ZERO by default. It would impact 
+        the validation of resizing instance. Temporarily, setting the size is 10000 to
+        pass the resizing validation.
+        '''
+        #root_gb = flavor.disk
+        root_gb = 10000
         ephemeral_gb = flavor_dict.get('OS-FLV-EXT-DATA:ephemeral', 0)
         u_swap = flavor_dict.get('swap', 0)
         rxtx_factor = flavor_dict.get('rxtx_factor', 1.0)

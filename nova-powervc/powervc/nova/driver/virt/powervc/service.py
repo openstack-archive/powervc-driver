@@ -898,9 +898,15 @@ class PowerVCService(object):
         else:
             flavor_extras_target = flavor_extras
 
+        '''
+        RTC 213328 - The disk (root_gb) attribute of flavor is set ZERO by default.
+        It causes the resizing process failed in PowerVC. Thus, retrive the disk
+        value from server.root_gb that is the image size value to extend the server
+        disk space.
+        '''
         flavor_props = {'vcpus': flavor['vcpus'],
                         'ram': flavor['memory_mb'],
-                        'disk': flavor['root_gb'],
+                        'disk': server.root_gb,
                         'extra_specs': flavor_extras_target
                         }
 
