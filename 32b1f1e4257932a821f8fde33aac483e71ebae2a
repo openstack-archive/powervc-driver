@@ -1,0 +1,8 @@
+Verified+2: Jenkins
+Code-Review+2: Jerry Cai <caimin@cn.ibm.com>
+Workflow+1: Jerry Cai <caimin@cn.ibm.com>
+Submitted-by: Jenkins
+Submitted-at: Fri, 13 Nov 2015 01:53:49 +0000
+Reviewed-on: https://review.openstack.org/244770
+Project: openstack/powervc-driver
+Branch: refs/heads/stable/kilo
