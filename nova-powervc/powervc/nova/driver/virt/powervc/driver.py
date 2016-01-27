@@ -867,7 +867,7 @@ class PowerVCDriver(driver.ComputeDriver):
             raise exception.MigrationPreCheckError(reason=reason)
 
         # check if the host selection will be defer to PowerVC
-        isDefer = self._check_defer_placement(instance_ref)
+        isDefer = self._check_defer_placement(instance_ref, is_spawn=True)
         if not isDefer:
             valid_hosts = self._service.get_valid_destinations(instance_ref)
             LOG.debug('compute manager host is %s, valid destination hosts '
@@ -1425,7 +1425,7 @@ class PowerVCDriver(driver.ComputeDriver):
         # TODO: Need to revisit this method after confirmation with powervc
         return ':' + instance['host']
 
-    def _check_defer_placement(self, instance):
+    def _check_defer_placement(self, instance, is_spawn=False):
         """
         Get instance meta data from instance
         such as "powervm:defer_placement" : "true"
@@ -1447,9 +1447,19 @@ class PowerVCDriver(driver.ComputeDriver):
                     defer_val = entry.get('value', None)
                     if defer_key == u'powervm:defer_placement':
                         return str2bool(defer_val)
-            return False
+            # During spawn a vm, by default is defer=true
+            if is_spawn:
+                LOG.debug("defer_plancement not set, defer pvc to spanw")
+                return True
+            else:
+                return False
 
-        isDefer = False
+        # During spawn a vm, by default is defer=true
+        if is_spawn:
+            LOG.debug("defer_plancement not set, defer pvc to spanw")
+            isDefer = True
+        else:
+            isDefer = False
         meta = instance.get('metadata', None)
         if meta:
             isDefer = get_defer_key_value(meta)
