@@ -1161,10 +1161,12 @@ class PowerVCCinderManager(service.Service):
                 constants.BACKEND_POWERVCDRIVER in CONF.enabled_backends:
             host = "%s@%s" % (CONF.host, constants.BACKEND_POWERVCDRIVER)
         disp_name = volume.get('display_name') or volume.get('name')
+        volume_desc = volume.get('display_description') or \
+            volume.get('description')
         LOG.debug(_("volume disp_name: %s") % disp_name)
         multiattach = volume.get('multiattach', False) or False
         values = {'display_name': disp_name,
-                  'display_description': volume.get('display_description'),
+                  'display_description': volume_desc,
                   #        'volume_type_id': volume_type_id,
                   #                   'id': volume['id'],
                   'status': volume.get('status'),
