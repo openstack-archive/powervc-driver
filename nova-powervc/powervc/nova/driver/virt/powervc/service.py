@@ -638,9 +638,14 @@ class PowerVCService(object):
         scg_key = constants.SCG_KEY
         storage_template_key = constants.STORAGE_TEMPLATE_KEY
 
-        if 'selected-scg' in meta.keys() and \
-           'selected-storage-template' in meta.keys():
+        if 'selected-scg' in meta.keys():
+            LOG.info(_('Boot with scg specified: %s'
+                       '.') % (meta['selected-scg']))
             flavorDict[extra_specs_key][scg_key] = meta['selected-scg']
+
+        if 'selected-storage-template' in meta.keys():
+            LOG.info(_('Boot with storage template specified: %s'
+                       '.') % (meta['selected-storage-template']))
             flavorDict[extra_specs_key][storage_template_key] = \
                 meta['selected-storage-template']
 
@@ -760,6 +765,7 @@ class PowerVCService(object):
         scg_name_list = CONF.powervc.storage_connectivity_group
         scg_id_list = [utils.get_utils().get_scg_id_by_scgName(scg_name)
                        for scg_name in scg_name_list]
+        LOG.info(_('The first scg-uuid is: %s.') % scg_id_list[0])
         scg_key = constants.SCG_KEY
         extra_specs_key = constants.EXTRA_SPECS
 
@@ -773,14 +779,7 @@ class PowerVCService(object):
                                " storage connectivity group."))
                     raise InvalidSCG(attr=extra_specs[scg_key])
 
-        if extra_specs_key not in flavorDict:
-            LOG.info(_("Flavor updated with default storage connectivity"
-                       " group in extra specs."))
-            flavorDict[extra_specs_key] = {scg_key: scg_id_list[0]}
-        else:
-            LOG.info(_("Extra specs updated with default storage connectivity"
-                       " group info."))
-            flavorDict[extra_specs_key][scg_key] = scg_id_list[0]
+        LOG.info(_('Boot vm with no scg specified, leave extra_specs empty'))
         return
 
     def destroy(self, instance):
