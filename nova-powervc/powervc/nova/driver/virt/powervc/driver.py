@@ -261,12 +261,15 @@ class PowerVCDriver(driver.ComputeDriver):
 
         LOG.debug("Instance to spawn: %s" % instance)
         createdServer = None
+
+        # get boot server name, get the display_name, if none use hostname
+        boot_sever_name = instance['display_name'] or instance['hostname']
         try:
             createdServer = \
                 self._service.spawn(context=context,
                                     instance=instance,
                                     injected_files=injected_files,
-                                    name=instance['hostname'],
+                                    name=boot_sever_name,
                                     imageUUID=pvcimage,
                                     flavorDict=pvcflavor,
                                     nics=pvc_nics,
