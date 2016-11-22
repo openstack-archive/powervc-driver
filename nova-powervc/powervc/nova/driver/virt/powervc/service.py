@@ -899,7 +899,7 @@ class PowerVCService(object):
 
         flavor_props = {'vcpus': flavor['vcpus'],
                         'ram': flavor['memory_mb'],
-                        'disk': flavor['root_gb'],
+                        'disk': getattr(server, 'root_gb', flavor['root_gb']),
                         'extra_specs': flavor_extras_target
                         }
 

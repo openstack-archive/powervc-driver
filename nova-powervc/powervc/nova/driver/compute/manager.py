@@ -992,7 +992,7 @@ class PowerVCCloudManager(manager.Manager):
                                                    "PowerVC flavor"
                                                    " that fits "
                                                    "into the resource "
-                                                   "instance instead"), rtn)
+                                                   "instance instead"))
                                         break
                     except Exception:
                         if rtn is None:

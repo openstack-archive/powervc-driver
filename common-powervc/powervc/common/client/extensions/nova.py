@@ -246,8 +246,8 @@ class PVCServerManager(servers.ServerManager):
         body["server"]["flavor"]['extra_specs'] = flavor['extra_specs']
 
         # If hypervisor ID specified:
-        if kwargs.get("hypervisor", None):
-            body["server"]['hypervisor_hostname'] = kwargs["hypervisor"]
+        #if kwargs.get("hypervisor", None):
+        #    body["server"]['hypervisor_hostname'] = kwargs["hypervisor"]
 
         if userdata:
             # RTC/172018 -- start
