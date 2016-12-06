@@ -458,7 +458,7 @@ class PowerVCCloudManager(manager.Manager):
             instance_type_id = sys_meta['id']
             if instance_type_id != flavor['id']:
                 ins['system_metadata'] = flavors.\
-                    save_flavor_info(sys_meta, flavor)
+                    save_flavor_info(dict(), flavor)
 
         return (ins, image, flavor)
 
