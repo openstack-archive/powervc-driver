@@ -945,8 +945,7 @@ class PowerVCCinderManager(service.Service):
         return found
 
     def _is_intermediate_state(self, local_volume=None, pvc_volume=None):
-        intermediate_statuses = [constants.STATUS_ATTACHING,
-                                 constants.STATUS_DETACHING]
+        intermediate_statuses = [constants.STATUS_ATTACHING]
         if local_volume:
             local_volume_state = local_volume.get('status')
             if local_volume_state in intermediate_statuses:
