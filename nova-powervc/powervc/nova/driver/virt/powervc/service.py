@@ -615,7 +615,8 @@ class PowerVCService(object):
                   orig_instance)
 
     def spawn(self, context, instance, injected_files, name, imageUUID,
-              flavorDict, nics, hypervisorID, availability_zone, isDefer):
+              flavorDict, nics, hypervisorID, availability_zone, isDefer,
+              scheduler_hints):
         """Call pvcnovaclient to boot a VM on powerVC
         :param context: admin context
         :param instance: passed-in instance
@@ -671,7 +672,8 @@ class PowerVCService(object):
                                      config_drive=config_drive,
                                      nics=nics,
                                      hypervisor=hypervisorID,
-                                     availability_zone=availability_zone)
+                                     availability_zone=availability_zone,
+                                     scheduler_hints=scheduler_hints)
             LOG.debug(_('Exit to invoke powervc api to deploy instance of %s,'
                         'isDefer status is %s') % (name, isDefer))
         else:
@@ -688,7 +690,8 @@ class PowerVCService(object):
                                                  # support key_data,
                                                  # key_data = key_data,
                                                  config_drive=config_drive,
-                                                 nics=nics)
+                                                 nics=nics,
+                                                 scheduler_hints=scheduler_hints)
             LOG.debug(_('Exit to invoke powervc api to deploy instance of %s,'
                         'isDefer status is %s') % (name, isDefer))
 

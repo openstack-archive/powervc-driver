@@ -15,6 +15,7 @@ from powervc.common.gettextutils import _
 from powervc.common import utils
 from webob import exc
 import logging
+import json
 
 LOG = logging.getLogger(__name__)
 
@@ -266,6 +267,11 @@ class PVCServerManager(servers.ServerManager):
         if key_name:
             body["server"]["key_name"] = key_name
         if scheduler_hints:
+            try:
+                scheduler_hints = json.loads(scheduler_hints)
+            except:
+                LOG.info(_("cannot convert s_hints to json object %s" %
+                           scheduler_hints))
             body['os:scheduler_hints'] = scheduler_hints
         if config_drive:
             body["server"]["config_drive"] = config_drive
@@ -347,6 +353,8 @@ class PVCServerManager(servers.ServerManager):
                     net_data['port'] = nic_info['port-id']
                 all_net_data.append(net_data)
             body['server']['networks'] = all_net_data
+
+        LOG.info(_("boot vm from pvc driver, body str is %s" % body))
 
         return self._create(resource_url, body, response_key,
                             return_raw=return_raw, **kwargs)

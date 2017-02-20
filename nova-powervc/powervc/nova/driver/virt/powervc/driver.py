@@ -243,6 +243,9 @@ class PowerVCDriver(driver.ComputeDriver):
         # check if the host selection will be defer to PowerVC
         isDefer = self._check_defer_placement(instance)
 
+        # get scheduler hint if set in metadata
+        scheduler_hints = self._get_scheduler_hints(instance)
+
         # If hosting OS decide to select one host,
         # get the PowerVC Hypervisor host name
         # else the host name will be ignore
@@ -275,7 +278,8 @@ class PowerVCDriver(driver.ComputeDriver):
                                     nics=pvc_nics,
                                     hypervisorID=pvcHypervisor,
                                     availability_zone=pvcAvailabilityZone,
-                                    isDefer=isDefer)
+                                    isDefer=isDefer,
+                                    scheduler_hints=scheduler_hints)
         except BadRequest as e1:
             with excutils.save_and_reraise_exception():
                 self._clean_vm_and_save_fault_message(e1, e1.message,
@@ -1468,6 +1472,36 @@ class PowerVCDriver(driver.ComputeDriver):
             isDefer = get_defer_key_value(meta)
 
         return isDefer
+
+    def _get_scheduler_hints(self, instance):
+        """
+        Get instance meta data from instance
+        such as "powervm:scheduler_hints" : "xxx"
+        """
+        # The instance metatdata can be of multiple forms.
+        # Handle cases : dict, list of class InstanceMetadata
+        def get_scheduler_hints_key_value(meta):
+            if isinstance(meta, dict):
+                for key in meta:
+                    scheduler_hints_val = meta[key]
+                    if key == u'powervm:scheduler_hints':
+                        return scheduler_hints_val
+            else:
+                for entry in meta:
+                    scheduler_hints_key = entry.get('key', None)
+                    scheduler_hints_val = entry.get('value', None)
+                    if scheduler_hints_key == u'powervm:scheduler_hints':
+                        return scheduler_hints_val
+
+        scheduler_hints = None
+        # During spawn a vm, by default is defer=true
+        meta = instance.get('metadata', None)
+        if meta:
+            scheduler_hints = get_scheduler_hints_key_value(meta)
+
+        if scheduler_hints:
+            LOG.info(_("Boot Scheduler hints: %s.") % scheduler_hints)
+        return scheduler_hints
 
     def get_pvc_flavor_by_flavor_id(self, flavor):
         """
