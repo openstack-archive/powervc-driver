@@ -6,7 +6,7 @@ import powervc.utils as utils_to_test
 
 class UtilsTest(testtools.TestCase):
     """
-    Class UtilsTest is used to provide testcases for
+    UtilsTest class is used to provide testcases for
     powervc/utils.py
     """
 
