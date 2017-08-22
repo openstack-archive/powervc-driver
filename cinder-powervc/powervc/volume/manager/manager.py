@@ -999,6 +999,7 @@ class PowerVCCinderManager(service.Service):
         volume_id = local_volume.get('id')
         volume_name = local_volume.get('display_name')
         volume_size = local_volume.get('size')
+        volume_project_id = local_volume.get('project_id')
         if volume_id is None:
             LOG.debug('Volume id is none and ignore it')
             return ret
@@ -1010,8 +1011,9 @@ class PowerVCCinderManager(service.Service):
                 db.volume_destroy(context, volume_id)
                 # update the quotas
                 reserve_opts = {'volumes': -1,
-                                'gigabytes': -volume_size}
+                                'gigabytes': volume_size * -1}
                 reservations = QUOTAS.reserve(context,
+                                              project_id=volume_project_id,
                                               **reserve_opts)
                 LOG.info(_("Start to deduct quota of volume: %s, size: %s") %
                          (volume_name, volume_size))
