@@ -269,8 +269,8 @@ class PVCCinderVolumesTest(VolumesTest):
             mock.MagicMock(return_value=returnvalues)
         result = self.cs.volumes.list()
 
-        self.assertEquals(result[0].id, 1234)
-        self.assertEquals(result[1].name, "pvc sample-volume for cinder")
+        self.assertEqual(result[0].id, 1234)
+        self.assertEqual(result[1].name, "pvc sample-volume for cinder")
 
     def test_list_volumes_2(self):
         returnvalues = [Volume(self, res, loaded=True)
@@ -279,7 +279,7 @@ class PVCCinderVolumesTest(VolumesTest):
             mock.MagicMock(return_value=returnvalues)
 
         result = self.cs.volumes.list(True, None, 'SCGUUID', None)
-        self.assertEquals(result[0].name, "sample-volume for cinder")
+        self.assertEqual(result[0].name, "sample-volume for cinder")
 
 
 class PVCCinderTypesTest(TypesTest):
@@ -335,9 +335,9 @@ class PVCCinderTypesTest(TypesTest):
             mock.MagicMock(return_value=returnvalues)
         result = self.cs.volume_types.list()
 
-        self.assertEquals(result[0].id, "6627888e-9f59-4996-8c22-5d528c3273f")
-        self.assertEquals(result[1].name, "dm-crypt")
-        self.assertEquals(result[2].name, "LUKS")
+        self.assertEqual(result[0].id, "6627888e-9f59-4996-8c22-5d528c3273f")
+        self.assertEqual(result[1].name, "dm-crypt")
+        self.assertEqual(result[2].name, "LUKS")
 
     def test_list_storage_templates_2(self):
         data = self.volumes_type_list[2]
@@ -348,7 +348,7 @@ class PVCCinderTypesTest(TypesTest):
             mock.MagicMock(return_value=returnvalues)
         result = self.cs.volume_types.list("SCGUUID", None)
 
-        self.assertEquals(result[0].name, "LUKS")
+        self.assertEqual(result[0].name, "LUKS")
 
 
 class PVCStorageProvidersTest(utils.TestCase):
