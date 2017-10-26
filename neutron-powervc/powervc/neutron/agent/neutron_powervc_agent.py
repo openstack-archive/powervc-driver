@@ -528,7 +528,9 @@ class PowerVCNeutronAgent(object):
             # Nova booting a vm and neutron creating new port would race the port.
             # If the neutron creates the port before booting vm,
             # the booting process would be failed as ip/port locked.
-            time.sleep(15)
+            # Bug#1724302 - Increase sleep time to handle IP mismanagement issue
+            # related to multiple heat stack deployments with powervc-driver
+            time.sleep(60)
             try:
                 new_port = self.pvc.create_port(port)
             except Exception, msg:
