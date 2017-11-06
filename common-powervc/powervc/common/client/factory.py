@@ -66,7 +66,7 @@ def initialize_local_servicecatalog():
             LOCAL = new_local_servicecatalog()
             return
         except Exception, e:
-            LOG.info(_('Keystone service is not ready. ' + str(e)))
+            LOG.info(_('Keystone service is not ready. %s ' % unicode(e)))
             count += 1
             if count == CONF['openstack']['keystone_max_try_times']:
                 LOG.error(_('Keystone service is not ready eventually after'
