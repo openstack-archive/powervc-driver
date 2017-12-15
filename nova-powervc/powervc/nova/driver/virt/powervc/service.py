@@ -1416,7 +1416,7 @@ class PowerVCService(object):
 
     def set_pvc_id_to_port(self, ctx, local_port_id, pvc_port_id):
         """
-        After attach an interface to a server, update the neutorn ports
+        After attach an interface to a server, update the neutron ports
         to reflect latest ports information to neutron db.
         """
         pvc_id = self._api.set_pvc_id_to_port(ctx, local_port_id, pvc_port_id)
