@@ -1,0 +1,10 @@
+Code-Review+1: Yaohua Yan <yanyaohua@cloudin.cn>
+Code-Review+1: guanzuoyu <guanzuoyu@cloudin.cn>
+Code-Review+2: Arun Mani <arun.mani@in.ibm.com>
+Workflow+1: Arun Mani <arun.mani@in.ibm.com>
+Verified+2: Zuul
+Submitted-by: Zuul
+Submitted-at: Thu, 04 Jan 2018 07:04:20 +0000
+Reviewed-on: https://review.openstack.org/528170
+Project: openstack/powervc-driver
+Branch: refs/heads/master
