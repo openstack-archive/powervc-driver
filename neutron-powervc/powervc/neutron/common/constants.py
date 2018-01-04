@@ -48,7 +48,8 @@ SUBNET_UPDATE_FIELDS = ['name',
 PORT_CREATE_FIELDS = ['name',
                       'mac_address',
                       'device_owner']
-PORT_UPDATE_FIELDS = ['name']
+PORT_UPDATE_FIELDS = ['name',
+                      'mac_address']
 
 # amqp message handling
 AMQP_EXCHANGE = 'neutron'
