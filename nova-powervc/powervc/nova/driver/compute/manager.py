@@ -881,7 +881,7 @@ class PowerVCCloudManager(manager.Manager):
             # Check whether the instance has been resized
             pvc_flavor_dict = pvc_flavor.__dict__
 
-            if (db_instance_flavor['memory_mb'] ==
+            if (db_instance_flavor and db_instance_flavor['memory_mb'] ==
                 pvc_flavor_dict['ram'] and
                 db_instance_flavor['vcpus'] ==
                 pvc_flavor_dict['vcpus'] and
