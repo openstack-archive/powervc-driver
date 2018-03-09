@@ -784,7 +784,7 @@ class Utils(object):
                 # For keystone v2 version
                 projects = ks_client.tenants.list()
             elif hasattr(ks_client, 'version') and (ks_client.version
-                in ['v3', 'v3.0']:
+                in ['v3', 'v3.0']):
                 # For keystone v3 version
                 projects = ks_client.projects.list()
             for tenant in projects:
