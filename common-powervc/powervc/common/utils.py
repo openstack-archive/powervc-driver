@@ -779,11 +779,13 @@ class Utils(object):
             constants.DEFAULT_STAGING_PROJECT_NAME
         try:
             projects = []
-            if hasattr(ks_client, 'v2') or hasattr(ks_client, 'v2.0'):
-                # For keystone V2
+            if hasattr(ks_client, 'version') and (ks_client.version
+                in ['v2', 'v2.0']):
+                # For keystone v2 version
                 projects = ks_client.tenants.list()
-            elif hasattr(ks_client, 'v3') or hasattr(ks_client, 'v3.0'):
-                # For keystone V3
+            elif hasattr(ks_client, 'version') and (ks_client.version
+                in ['v3', 'v3.0']:
+                # For keystone v3 version
                 projects = ks_client.projects.list()
             for tenant in projects:
                 projectname = tenant.name
