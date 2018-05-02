@@ -450,7 +450,7 @@ class PowerVCCloudManager(manager.Manager):
             # Get user and project from the DB entry
             ins['user_id'] = db_instance.get('user_id')
             ins['project_id'] = db_instance.get('project_id')
-            # Need to update the system metadate when the flavor of
+            # Need to update the system metadata when the flavor of
             # the instance changes
             inst = instance_obj.Instance.get_by_uuid(ctx,
                                                      db_instance.get('uuid'))
