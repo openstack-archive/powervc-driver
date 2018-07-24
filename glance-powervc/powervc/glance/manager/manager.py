@@ -1,4 +1,4 @@
-# Copyright 2013, 2014 IBM Corp.
+# Copyright 2013, 2018 IBM Corp.
 
 """
 PowerVC Driver ImageManager service
@@ -77,7 +77,6 @@ class PowerVCImageManager(service.Service):
         # The cached local and PowerVC v1 and v2 glance clients
         self.local_v1client = None
         self.local_v2client = None
-        self.pvc_v1client = None
         self.pvc_v2client = None
 
         # Dicts of events to ignore. These are used to keep events from
@@ -216,15 +215,18 @@ class PowerVCImageManager(service.Service):
             # Get the images dict from PowerVC. Only get images that are
             # accessible from our Storage Connectivity Group. If the SCG is
             # not found, an exception is raised and the sync will fail here.
-            pvc_v1client = self._get_pvc_v1_client()
-            v1pvc_images = pvc_v1client.images
-            pvc_image_dict = self._get_pvc_images(v1pvc_images)
+            # LP bug - https://bugs.launchpad.net/powervc-driver/+bug/1783096,
+            # Remove glance v1 client calls, as the same has been removed with
+            # the Queens release of Openstack. With this, we will only use
+            # v2 glance API to update images to and from PowerVC.
+            pvc_v2client = self._get_pvc_v2_client()
+            v2pvc_images = pvc_v2client.images
+            pvc_image_dict = self._get_pvc_images(v2pvc_images)
 
             # Dump the local image information
             self._dump_image_info(local_image_dict, pvc_image_dict)
 
             # If there are hostingOS images, check for deletes and updates
-            pvc_v2client = self._get_pvc_v2_client()
             local_v2client = self._get_local_v2_client()
             v2local_images = local_v2client.images
 
@@ -282,6 +284,8 @@ class PowerVCImageManager(service.Service):
                     # Add an extra property named image_topology , which allows
                     # user to select a SCG/Storage Template when booting an VM
                     pvc_image = pvc_image_dict[uuid]
+                    pvc_image = \
+                        dict([(str(k), v) for k, v in pvc_image.items()])
                     if pvc_image:
                         pvc_image = \
                             self._insert_extra_property_image_topology(
@@ -297,7 +301,7 @@ class PowerVCImageManager(service.Service):
                     LOG.info(_('Updating hosting OS image \'%s\' for PowerVC '
                                'UUID %s'), name, uuid)
                     updated_image = self._update_local_image(
-                        uuid, pvc_image_dict[uuid], local_image,
+                        uuid, pvc_image, local_image,
                         v1local_images, v2local_images)
 
                     # Save updated_at timestamp for the local hostingOS image
@@ -318,8 +322,8 @@ class PowerVCImageManager(service.Service):
                     # during subsequent periodic sync operations. Also save the
                     # PowerVC image as the master_image used for merging
                     # changes during periodic scan image updates.
-                    self.pvc_updated_at[uuid] = pvc_image_dict[uuid].updated_at
-                    self.master_image[uuid] = pvc_image_dict[uuid]
+                    self.pvc_updated_at[uuid] = pvc_image['updated_at']
+                    self.master_image[uuid] = pvc_image
 
             # Add any new active PowerVC images to the hostingOS.
             local_image_owner = self._get_local_staging_owner_id()
@@ -330,8 +334,10 @@ class PowerVCImageManager(service.Service):
                 for uuid in pvc_image_dict.keys():
                     if uuid not in local_image_dict.keys():
                         pvc_image = pvc_image_dict[uuid]
-                        status = pvc_image.status
-                        pvc_name = pvc_image.name
+                        pvc_image = \
+                            dict([(str(k), v) for k, v in pvc_image.items()])
+                        status = pvc_image['status']
+                        pvc_name = pvc_image['name']
 
                         # Only sync images from PowerVC that are 'active', and
                         # that are accessible from our Storage Connectivity
@@ -458,9 +464,13 @@ class PowerVCImageManager(service.Service):
             # Get the images dict from PowerVC. Only get images that are
             # accessible from our Storage Connectivity Group. If the SCG is
             # not found, an exception is raised and the sync will fail here.
-            pvc_v1client = self._get_pvc_v1_client()
-            v1pvc_images = pvc_v1client.images
-            pvc_image_dict = self._get_pvc_images(v1pvc_images)
+            # LP bug - https://bugs.launchpad.net/powervc-driver/+bug/1783096,
+            # Remove glance v1 client calls, as the same has been removed with
+            # the Queens release of Openstack. With this, we will only use
+            # v2 glance API to update images to and from PowerVC.
+            pvc_v2client = self._get_pvc_v2_client()
+            v2pvc_images = pvc_v2client.images
+            pvc_image_dict = self._get_pvc_images(v2pvc_images)
 
             # Dump the local image information
             self._dump_image_info(local_image_dict, pvc_image_dict)
@@ -471,10 +481,8 @@ class PowerVCImageManager(service.Service):
             # trying to process all images when there is a connection failure.
             # Other exceptions should be caught and logged during each
             # operation so we can attempt to process each image before leaving.
-            pvc_v2client = self._get_pvc_v2_client()
             local_v2client = self._get_local_v2_client()
             v2local_images = local_v2client.images
-            v2pvc_images = pvc_v2client.images
 
             # Get the image sets from the past run, and the current run
             past_local_image_set = set(self.local_updated_at)
@@ -506,6 +514,7 @@ class PowerVCImageManager(service.Service):
             for uuid in update_candidates:
                 local_image = local_image_dict[uuid]
                 pvc_image = pvc_image_dict[uuid]
+                pvc_image = dict([(str(k), v) for k, v in pvc_image.items()])
                 local_updated = self._local_image_updated(uuid, local_image)
                 pvc_updated = self._pvc_image_updated(uuid, pvc_image)
 
@@ -519,18 +528,18 @@ class PowerVCImageManager(service.Service):
 
                 if 'image_topology' not in local_image.properties or \
                     local_image.properties['image_topology'] != \
-                        pvc_image.properties['image_topology']:
+                        pvc_image['properties']['image_topology']:
                     if not pvc_updated:
                         pvc_updated = True
 
                 local_checksum = \
                     self._get_image_checksum(local_image.to_dict())
-                pvc_checksum = self._get_image_checksum(pvc_image.to_dict())
+                pvc_checksum = self._get_image_checksum(pvc_image)
 
                 # See if we need to activate a local queued snapshot image from
                 # an instance capture
                 if local_image.status == 'queued' and \
-                        pvc_image.status == 'active':
+                        pvc_image['status'] == 'active':
                     LOG.info(_('Performing update sync of snapshot image '
                                '\'%s\' from PowerVC to the local hosting OS to'
                                ' activate the image.'), local_image.name)
@@ -556,7 +565,7 @@ class PowerVCImageManager(service.Service):
                         # stored in a dict with the PowerVC UUID as the keys
                         # and the updated_at image attribute as the values.
                         self.local_updated_at[uuid] = updated_image.updated_at
-                        self.pvc_updated_at[uuid] = pvc_image.updated_at
+                        self.pvc_updated_at[uuid] = pvc_image['updated_at']
 
                         # Save the PowerVC image as the master image
                         self.master_image[uuid] = pvc_image
@@ -566,12 +575,12 @@ class PowerVCImageManager(service.Service):
                     # on PowerVC since the last periodic scan, then the two
                     # images need to be merged, and both updated with the
                     # result.
+                    # v1pvc_images is been depricated
                     updated_local_image, updated_pvc_image = \
                         self._update_with_merged_images(uuid, local_image,
                                                         pvc_image,
                                                         v1local_images,
                                                         v2local_images,
-                                                        v1pvc_images,
                                                         v2pvc_images)
                     if updated_local_image is not None:
                         self.local_updated_count += 1
@@ -591,7 +600,7 @@ class PowerVCImageManager(service.Service):
                     # Update sync local image to PowerVC
                     updated_image = self._update_pvc_image(uuid, local_image,
                                                            pvc_image,
-                                                           v1pvc_images,
+                                                           v2pvc_images,
                                                            v2pvc_images)
 
                     if updated_image is None:
@@ -638,7 +647,10 @@ class PowerVCImageManager(service.Service):
                         # stored in a dict with the PowerVC UUID as the keys
                         # and the updated_at image attribute as the values.
                         self.local_updated_at[uuid] = updated_image.updated_at
-                        self.pvc_updated_at[uuid] = pvc_image.updated_at
+                        if isinstance(pvc_image, dict):
+                            self.pvc_updated_at[uuid] = pvc_image['updated_at']
+                        else:
+                            self.pvc_updated_at[uuid] = pvc_image.updated_at
 
                         # Save the PowerVC image as the master image
                         self.master_image[uuid] = pvc_image
@@ -659,7 +671,6 @@ class PowerVCImageManager(service.Service):
                                                         pvc_image,
                                                         v1local_images,
                                                         v2local_images,
-                                                        v1pvc_images,
                                                         v2pvc_images)
                     if updated_local_image is not None:
                         self.local_updated_count += 1
@@ -686,7 +697,7 @@ class PowerVCImageManager(service.Service):
                     LOG.info(_('Deleting PowerVC image \'%s\' for UUID %s'),
                              pvc_image.name, uuid)
                     deleted_image = self._delete_pvc_image(uuid, pvc_image,
-                                                           v1pvc_images)
+                                                           v2pvc_images)
                     if deleted_image is None:
                         LOG.error(_('PowerVC image \'%s\' with UUID %s was not'
                                     ' deleted during periodic image'
@@ -893,9 +904,14 @@ class PowerVCImageManager(service.Service):
         # received for the newly created image yet, and the local image doesn't
         # yet contain the powervc_uuid property.
         local_image = None
-        pvc_id = pvc_image.id
-        pvc_name = pvc_image.name
-        props = self._get_image_properties(pvc_image.to_dict())
+        if isinstance(pvc_image, dict):
+            pvc_id = pvc_image['id']
+            pvc_name = pvc_image['name']
+            props = self._get_image_properties(pvc_image)
+        else:
+            pvc_id = pvc_image.id
+            pvc_name = pvc_image.name
+            props = self._get_image_properties(pvc_image.to_dict())
         if props and consts.LOCAL_UUID_KEY in props.keys():
 
             # Look for the LOCAL_UUID_KEY in the PowerVC image. If it is found
@@ -915,10 +931,16 @@ class PowerVCImageManager(service.Service):
 
             # If this is a snapshot image, it may not have an entry in the ids
             # dict so add one here.
-            self.ids_dict[pvc_id] = local_image.id
+            if isinstance(local_image, dict):
+                self.ids_dict[pvc_id] = local_image['id']
+                local_image_name = local_image['name']
+            else:
+                self.ids_dict[pvc_id] = local_image.id
+                local_image_name = local_image.name
+
             LOG.info(_('Performing update sync of snapshot image \'%s\' from '
                        'PowerVC to the local hosting OS to activate the '
-                       'image.'), local_image.name)
+                       'image.'), local_image_name)
 
             # Update sync PowerVC image to local snapshot image to activate it
             updated_image = self._update_local_image(pvc_id, pvc_image,
@@ -960,18 +982,27 @@ class PowerVCImageManager(service.Service):
                 # periodic sync operation. The update times are stored in dicts
                 # with the PowerVC UUID as the keys and the updated_at image
                 # attribute as the values.
-                self.pvc_updated_at[pvc_id] = pvc_image.updated_at
-                self.local_updated_at[pvc_id] = new_image.updated_at
+                if isinstance(pvc_image, dict):
+                    self.pvc_updated_at[pvc_id] = pvc_image['updated_at']
+                else:
+                    self.pvc_updated_at[pvc_id] = pvc_image.updated_at
+                if isinstance(new_image, dict):
+                    self.local_updated_at[pvc_id] = new_image['updated_at']
+                else:
+                    self.local_updated_at[pvc_id] = new_image.updated_at
 
                 # Save the PowerVC image as the master_image
                 self.master_image[pvc_id] = pvc_image
 
                 # Save the ids in the ids_dict
-                self.ids_dict[pvc_id] = new_image.id
+                if isinstance(new_image, dict):
+                    self.ids_dict[pvc_id] = new_image['id']
+                else:
+                    self.ids_dict[pvc_id] = new_image.id
 
     def _update_with_merged_images(self, uuid, local_image, pvc_image,
                                    v1local_images, v2local_images,
-                                   v1pvc_images, v2pvc_images):
+                                   v2pvc_images):
         """
         Both the local hostingOS image, and the PowerVC image have been
         updated. Merge the two images with the master_image to come up
@@ -988,8 +1019,6 @@ class PowerVCImageManager(service.Service):
         :param: v1local_images The local hostingOS v1 image manager of image
                                 the controller to use
         :param: v2local_images The local hostingOS v2 image controller to use
-        :param: v1pvc_images The PowerVC v1 image manager of the image
-                                controller to use
         :param: v2pvc_images The PowerVC v2 image controller to use
         :returns: A tuple containing the updated local hostingOS image, and the
                     updated PowerVC image. If a problem was encountered
@@ -997,7 +1026,7 @@ class PowerVCImageManager(service.Service):
         """
         try:
             local_updated_at = self._get_v1_datetime(local_image.updated_at)
-            pvc_updated_at = self._get_v1_datetime(pvc_image.updated_at)
+            pvc_updated_at = self._get_v1_datetime(pvc_image['updated_at'])
             LOG.debug(_('local_updated_at %s, pvc_updated_at %s'),
                       local_updated_at, pvc_updated_at)
         except Exception as e:
@@ -1024,13 +1053,13 @@ class PowerVCImageManager(service.Service):
                 if (local_updated_at > pvc_updated_at):
                     LOG.debug(_('The PowerVC image \'%s\' with UUID %s will be'
                                 ' the master copy to merge with.'),
-                              pvc_image.name, uuid)
+                              pvc_image['name'], uuid)
 
                     # The PowerVC image will be the master copy for the merge.
                     # Get a copy of the PowerVC image to use as the master.
-                    master_image = self._get_image(uuid, pvc_image.id,
-                                                   pvc_image.name,
-                                                   v1pvc_images, v2pvc_images)
+                    master_image = self._get_image(uuid, pvc_image['id'],
+                                                   pvc_image['name'],
+                                                   v2pvc_images, v2pvc_images)
                 else:
                     LOG.debug(_('The local hostingOS image \'%s\' for PowerVC '
                                 'UUID %s will be the master copy to merge '
@@ -1086,16 +1115,21 @@ class PowerVCImageManager(service.Service):
             # PowerVC image is updated.
             LOG.info(_('Performing update sync of image \'%s\' from merged '
                        'master image to the local hosting OS for PowerVC UUID '
-                       '%s'), master_image.name, uuid)
+                       '%s'), master_image['name'], uuid)
 
             # Update sync master image to local hostingOS. This merge could be
             # of a PowerVC active snapshot image to a hostingOS queued snapshot
             # image. In that case, the master_image status must be set to
             # active for the hostingOS update to work properly. Modify the
             # image by setting the attribute first, and then the _info dict.
-            if pvc_image.status == 'active':
-                setattr(master_image, 'status', pvc_image.status)
-                master_image._info['status'] = pvc_image.status
+            if pvc_image['status'] == 'active':
+                if isinstance(master_image, dict):
+                    master_image['status'] = pvc_image['status']
+                    master_image_name = master_image['name']
+                else:
+                    setattr(master_image, 'status', pvc_image['status'])
+                    master_image._info['status'] = pvc_image.status
+                    master_image_name = master_image.name
             LOG.debug(_('Master image for local: %s'), str(master_image))
             updated_local_image = self._update_local_image(uuid, master_image,
                                                            local_image,
@@ -1111,7 +1145,7 @@ class PowerVCImageManager(service.Service):
             else:
                 LOG.info(_('Performing update sync of image \'%s\' from the '
                            'merged master image to PowerVC for PowerVC UUID '
-                           '%s'), master_image.name, uuid)
+                           '%s'), master_image_name, uuid)
 
                 # To avoid the image property image_topology is
                 # synced to PowerVC side
@@ -1123,7 +1157,7 @@ class PowerVCImageManager(service.Service):
                 LOG.debug(_('Master image for pvc: %s'), str(master_image))
                 updated_pvc_image = self._update_pvc_image(uuid, master_image,
                                                            pvc_image,
-                                                           v1pvc_images,
+                                                           v2pvc_images,
                                                            v2pvc_images)
                 if updated_pvc_image is None:
                     LOG.error(_('PowerVC image \'%s\' with UUID %s was not '
@@ -1131,7 +1165,7 @@ class PowerVCImageManager(service.Service):
                                 'hostingOS image was updated. An attempt to '
                                 'synchronize both will be tried again during '
                                 'the next periodic image synchronization '
-                                'operation.'), pvc_image.name, uuid)
+                                'operation.'), pvc_image['name'], uuid)
                 else:
 
                     # Capture the current update times for use during the next
@@ -1140,7 +1174,7 @@ class PowerVCImageManager(service.Service):
                     # image attribute as the values.
                     self.local_updated_at[uuid] = \
                         updated_local_image.updated_at
-                    self.pvc_updated_at[uuid] = updated_pvc_image.updated_at
+                    self.pvc_updated_at[uuid] = updated_pvc_image['updated_at']
 
                     # Save the PowerVC image as the master_image
                     self.master_image[uuid] = updated_pvc_image
@@ -1168,7 +1202,7 @@ class PowerVCImageManager(service.Service):
                 # with the PowerVC UUID as the keys and the updated_at image
                 # attribute as the values.
                 self.local_updated_at[uuid] = updated_local_image.updated_at
-                self.pvc_updated_at[uuid] = pvc_image.updated_at
+                self.pvc_updated_at[uuid] = pvc_image['updated_at']
 
                 # Save the PowerVC image as the master_image
                 self.master_image[uuid] = pvc_image
@@ -1202,9 +1236,15 @@ class PowerVCImageManager(service.Service):
         :param: property_changes The dict of image property changes.
         :param: deleted_property_keys The list of deleted image property keys.
         """
-        updated_image_dict = updated_image.to_dict()
-        master_image_dict = master_image.to_dict()
+        if isinstance(updated_image, dict):
+            updated_image_dict = updated_image
+        else:
+            updated_image_dict = updated_image.to_dict()
 
+        if isinstance(master_image, dict):
+            master_image_dict = master_image
+        else:
+            master_image_dict = master_image.to_dict()
         # Process the image attributes we care about
         for imagekey in updated_image_dict.keys():
 
@@ -1275,18 +1315,28 @@ class PowerVCImageManager(service.Service):
         LOG.debug(_('attribute changes: %s'), str(attribute_changes))
         LOG.debug(_('property changes: %s'), str(property_changes))
         LOG.debug(_('deleted properties: %s'), str(deleted_property_keys))
+        attribute_changes = \
+            dict([(str(k), v) for k, v in attribute_changes.items()])
+        master_image = dict([(str(k), v) for k, v in master_image.items()])
         for key in attribute_changes.keys():
-            if key in master_image._info.keys() and hasattr(master_image, key):
+            if (isinstance(master_image, dict)
+                and (key in master_image.keys() or
+                     (key in ['is_public', 'deleted']))):
+                master_image[key] = attribute_changes.get(key)
+                master_image_name = master_image['name']
+
+            elif (key in master_image._info.keys()
+                  and hasattr(master_image, key)):
                 setattr(master_image, key, attribute_changes.get(key))
                 master_image._info[key] = attribute_changes.get(key)
+                master_image_name = master_image.name
             else:
-
                 # This is unexpected so log a warning
                 LOG.warning(_('Image attribute \'%s\' was not updated for '
-                              'image \'%s\'.'), key, master_image.name)
+                                'image \'%s\'.'), key, master_image_name)
 
         # Process image properties
-        master_props = self._get_image_properties(master_image._info, {})
+        master_props = self._get_image_properties(master_image, {})
 
         # Process property adds and updates
         for prop_key in property_changes.keys():
@@ -1298,8 +1348,11 @@ class PowerVCImageManager(service.Service):
                 master_props.pop(prop_key)
 
         # Reset the image properties
-        master_image.properties = master_props
-        master_image._info['properties'] = master_props
+        if isinstance(master_image, dict):
+            master_image['properties'] = master_props
+        else:
+            master_image.properties = master_props
+            master_image._info['properties'] = master_props
         LOG.debug(_('Master image for merge: %s'), str(master_image))
 
     def _get_image(self, uuid, image_id, image_name, v1images, v2images):
@@ -1319,7 +1372,10 @@ class PowerVCImageManager(service.Service):
         """
         try:
             v1image = v1images.get(image_id)
-            props = self._get_image_properties(v1image.to_dict(), {})
+            if isinstance(v1image, dict):
+                props = self._get_image_properties(v1image, {})
+            else:
+                props = self._get_image_properties(v1image.to_dict(), {})
             large_props = {}
             for propkey in props.keys():
                 propval = props.get(propkey)
@@ -1336,8 +1392,12 @@ class PowerVCImageManager(service.Service):
                     if propkey in v2image.keys():
                         props[propkey] = v2image[propkey]
                 self._unescape(props)
-            v1image.properties = props
-            v1image._info['properties'] = props
+            if isinstance(v1image, dict):
+                v1image = dict([(str(k), v) for k, v in v1image.items()])
+                v1image["properties"] = props
+            else:
+                v1image.properties = props
+                v1image._info['properties'] = props
             return v1image
         except CommunicationError as e:
             raise e
@@ -1360,8 +1420,12 @@ class PowerVCImageManager(service.Service):
         """
         deleted_image = self._delete_image(uuid, image, v1images)
         if deleted_image is not None:
-            self._ignore_local_event(constants.IMAGE_EVENT_TYPE_DELETE,
-                                     deleted_image.to_dict())
+            if isinstance(deleted_image, dict):
+                self._ignore_local_event(constants.IMAGE_EVENT_TYPE_DELETE,
+                                         deleted_image)
+            else:
+                self._ignore_local_event(constants.IMAGE_EVENT_TYPE_DELETE,
+                                         deleted_image.to_dict())
         return deleted_image
 
     def _delete_pvc_image(self, uuid, image, v1images):
@@ -1378,8 +1442,12 @@ class PowerVCImageManager(service.Service):
         """
         deleted_image = self._delete_image(uuid, image, v1images)
         if deleted_image is not None:
-            self._ignore_pvc_event(constants.IMAGE_EVENT_TYPE_DELETE,
-                                   deleted_image.to_dict())
+            if isinstance(deleted_image, dict):
+                self._ignore_pvc_event(constants.IMAGE_EVENT_TYPE_DELETE,
+                                       deleted_image)
+            else:
+                self._ignore_pvc_event(constants.IMAGE_EVENT_TYPE_DELETE,
+                                       deleted_image.to_dict())
         return deleted_image
 
     def _delete_image(self, uuid, image, v1images):
@@ -1396,7 +1464,11 @@ class PowerVCImageManager(service.Service):
         """
         try:
             deleted_image = image
-            v1images.delete(image)
+            if isinstance(image, dict):
+                id = image['id']
+                v1images.delete(id)
+            else:
+                v1images.delete(image)
             return deleted_image
         except CommunicationError as e:
             raise e
@@ -1439,11 +1511,19 @@ class PowerVCImageManager(service.Service):
         activate_event_type = constants.IMAGE_EVENT_TYPE_ACTIVATE
         update_event_type = constants.IMAGE_EVENT_TYPE_UPDATE
         if image1 is not None:
-            self._ignore_local_event(create_event_type, image1.to_dict())
-            self._ignore_local_event(activate_event_type, image1.to_dict())
-            self._ignore_local_event(update_event_type, image1.to_dict())
+            if isinstance(image1, dict):
+                self._ignore_local_event(create_event_type, image1)
+                self._ignore_local_event(activate_event_type, image1)
+                self._ignore_local_event(update_event_type, image1)
+            else:
+                self._ignore_local_event(create_event_type, image1.to_dict())
+                self._ignore_local_event(activate_event_type, image1.to_dict())
+                self._ignore_local_event(update_event_type, image1.to_dict())
         if image2 is not None:
-            self._ignore_local_event(update_event_type, image2.to_dict())
+            if isinstance(image2, dict):
+                self._ignore_local_event(update_event_type, image2)
+            else:
+                self._ignore_local_event(update_event_type, image2.to_dict())
         return image1 if image2 is None else image2
 
     def _add_image(self, uuid, src_image, image_owner, image_endpoint,
@@ -1471,8 +1551,12 @@ class PowerVCImageManager(service.Service):
             field_dict, update_field_dict = self._get_v1image_create_fields(
                 src_image, image_owner, image_endpoint)
             # Community fix needs the property 'checksum' must be set
-            field_dict['checksum'] = self._get_image_checksum(
-                src_image.to_dict())
+            if isinstance(src_image, dict):
+                field_dict['checksum'] = self._get_image_checksum(
+                    src_image)
+            else:
+                field_dict['checksum'] = self._get_image_checksum(
+                    src_image.to_dict())
 
             # We do not want to update bdm from pvc during adding image
             if constants.BDM_KEY in field_dict.get('properties'):
@@ -1515,8 +1599,9 @@ class PowerVCImageManager(service.Service):
         :returns: The updated v1 image, or None if the update was not
                     successful.
         """
-        if ((src_image.status == 'active' and tgt_image.status == 'queued') or
-                (src_image.size != tgt_image.size)):
+        if ((src_image['status'] == 'active'
+             and tgt_image.status == 'queued')
+             or (src_image['size'] != tgt_image.size)):
             return self._v1update_local_image(uuid, src_image, tgt_image,
                                               v1images, v2images)
         else:
@@ -1539,7 +1624,15 @@ class PowerVCImageManager(service.Service):
         :returns: The updated v1 image, or None if the update was not
                     successful.
         """
-        if src_image.size != tgt_image.size:
+        if isinstance(src_image, dict):
+            src_image_size = src_image['size']
+        else:
+            src_image_size = src_image.size
+        if isinstance(tgt_image, dict):
+            tgt_image_size = tgt_image['size']
+        else:
+            tgt_image_size = tgt_image.size
+        if src_image_size != tgt_image_size:
             return self._v1update_pvc_image(uuid, src_image, tgt_image,
                                             v1images, v2images)
         else:
@@ -1575,12 +1668,34 @@ class PowerVCImageManager(service.Service):
             # If this is going to activate an instance capture on the local
             # hostingOS set to ignore the activate, and the update that comes
             # along with every activate.
-            if src_image.status == 'active' and tgt_image.status == 'queued':
-                self._ignore_local_event(add_event_type, image1.to_dict())
+            if isinstance(src_image, dict):
+                src_image_status = src_image['status']
+            else:
+                src_image_status = src_image.status
+            if isinstance(tgt_image, dict):
+                tgt_image_status = tgt_image['status']
+            else:
+                tgt_image_status = tgt_image.status
+
+            if src_image_status == 'active' and tgt_image_status == 'queued':
+                if isinstance(image1, dict):
+                    self._ignore_local_event(add_event_type, image1)
+                    self._ignore_local_event(update_event_type, image1)
+                else:
+                    self._ignore_local_event(add_event_type, image1.to_dict())
+                    self._ignore_local_event(update_event_type,
+                                             image1.to_dict())
+
+            if isinstance(image1, dict):
+                self._ignore_local_event(update_event_type, image1)
+            else:
                 self._ignore_local_event(update_event_type, image1.to_dict())
-            self._ignore_local_event(update_event_type, image1.to_dict())
+
         if image2 is not None:
-            self._ignore_local_event(update_event_type, image2.to_dict())
+            if isinstance(image2, dict):
+                self._ignore_local_event(update_event_type, image2)
+            else:
+                self._ignore_local_event(update_event_type, image2.to_dict())
         return image1 if image2 is None else image2
 
     def _v1update_pvc_image(self, uuid, src_image, tgt_image, v1images,
@@ -1608,9 +1723,15 @@ class PowerVCImageManager(service.Service):
         # Set to ignore any update events generated by updating the image
         event_type = constants.IMAGE_EVENT_TYPE_UPDATE
         if image1 is not None:
-            self._ignore_pvc_event(event_type, image1.to_dict())
+            if isinstance(image1, dict):
+                self._ignore_pvc_event(event_type, image1)
+            else:
+                self._ignore_pvc_event(event_type, image1.to_dict())
         if image2 is not None:
-            self._ignore_pvc_event(event_type, image2.to_dict())
+            if isinstance(image2, dict):
+                self._ignore_pvc_event(event_type, image2)
+            else:
+                self._ignore_pvc_event(event_type, image2.to_dict())
         return image1 if image2 is None else image2
 
     def _v1update_image(self, uuid, src_image, tgt_image, v1images, v2images,
@@ -1657,9 +1778,23 @@ class PowerVCImageManager(service.Service):
             # the location to the target image so that it's status will go
             # active. This will take care of finalizing the snapshot image
             # creation process.
+            if isinstance(src_image, dict):
+                src_image_status = src_image['status']
+            else:
+                src_image_status = src_image.status
+
+            if isinstance(tgt_image, dict):
+                tgt_image_status = tgt_image['status']
+                tgt_image_name = tgt_image['name']
+                tgt_image_id = tgt_image['id']
+            else:
+                tgt_image_status = tgt_image.status
+                tgt_image_name = tgt_image.name
+                tgt_image_id = tgt_image.id
+
             if target_type == constants.LOCAL and \
-                src_image.status == 'active' and \
-                    tgt_image.status == 'queued':
+                src_image_status == 'active' and \
+                    tgt_image_status == 'queued':
                 pvc_v2client = self._get_pvc_v2_client()
                 field_dict['location'] = self._get_image_location(
                     pvc_v2client.http_client.endpoint, src_image)
@@ -1668,18 +1803,23 @@ class PowerVCImageManager(service.Service):
             if len(patch_dict) > 0:
 
                 # Update the properties, and any large image attributes
-                v2images.update(tgt_image.id, remove_props=remove_list,
+                v2images.update(tgt_image_id, remove_props=remove_list,
                                 **patch_dict)
 
                 # refresh the v1 image to return after the udpate
-                image2 = self._get_image(uuid, image1.id, image1.name,
-                                         v1images, v2images)
+                if isinstance(image1, dict):
+                    image2 = self._get_image(uuid, image1['id'],
+                                             image1['name'],
+                                             v1images, v2images)
+                else:
+                    image2 = self._get_image(uuid, image1.id, image1.name,
+                                             v1images, v2images)
             return image1, image2
         except CommunicationError as e:
             raise e
         except Exception as e:
             LOG.exception(_('An error occurred updating image \'%s\' for '
-                            'PowerVC UUID %s: %s'), tgt_image.name, uuid, e)
+                            'PowerVC UUID %s: %s'), tgt_image_name, uuid, e)
             return None, None
 
     def _get_image_location(self, endpoint, v1image):
@@ -1694,7 +1834,11 @@ class PowerVCImageManager(service.Service):
         if not location.endswith('/'):
             location += '/'
         location += constants.IMAGE_LOCATION_PATH
-        location += v1image.id
+
+        if isinstance(v1image, dict):
+            location += v1image['id']
+        else:
+            location += v1image.id
         return location
 
     def _get_v1image_update_fields(self, v1src_image, v1tgt_image):
@@ -1719,10 +1863,16 @@ class PowerVCImageManager(service.Service):
         field_dict = {}
         patch_dict = {}
         remove_list = None
-        image_dict = v1src_image.to_dict()
+        if isinstance(v1src_image, dict):
+            image_dict = v1src_image
+        else:
+            image_dict = v1src_image.to_dict()
         src_props = self._get_image_properties(image_dict)
         if src_props is not None:
-            tgt_image_dict = v1tgt_image.to_dict()
+            if isinstance(v1tgt_image, dict):
+                tgt_image_dict = v1tgt_image
+            else:
+                tgt_image_dict = v1tgt_image.to_dict()
             tgt_props = self._get_image_properties(tgt_image_dict, {})
 
             # Add image properties to be patched after filtering out specified
@@ -1837,7 +1987,10 @@ class PowerVCImageManager(service.Service):
 
         # Remove large properties before processing. They will be added
         # using a v2 update
-        image_dict = v1image.to_dict()
+        if isinstance(v1image, dict):
+            image_dict = v1image
+        else:
+            image_dict = v1image.to_dict()
         props = self._get_image_properties(image_dict)
         if props is not None:
             update_field_dict = self._remove_large_properties(props)
@@ -1864,7 +2017,10 @@ class PowerVCImageManager(service.Service):
 
         # Add the PowerVC UUID property
         props = create_field_dict.get('properties', {})
-        props[consts.POWERVC_UUID_KEY] = v1image.id
+        if isinstance(v1image, dict):
+            props[consts.POWERVC_UUID_KEY] = v1image['id']
+        else:
+            props[consts.POWERVC_UUID_KEY] = v1image.id
         create_field_dict['properties'] = props
         return create_field_dict, update_field_dict
 
@@ -1935,8 +2091,12 @@ class PowerVCImageManager(service.Service):
 
         # Set to ignore any update events generated by updating the image
         if v1image is not None:
-            self._ignore_local_event(constants.IMAGE_EVENT_TYPE_UPDATE,
-                                     v1image.to_dict())
+            if isinstance(v1image, dict):
+                self._ignore_local_event(constants.IMAGE_EVENT_TYPE_UPDATE,
+                                         v1image)
+            else:
+                self._ignore_local_event(constants.IMAGE_EVENT_TYPE_UPDATE,
+                                         v1image.to_dict())
         return v1image
 
     def _v2update_pvc_image(self, uuid, src_image, tgt_image, v1images,
@@ -1962,8 +2122,12 @@ class PowerVCImageManager(service.Service):
 
         # Set to ignore any update events generated by updating the image
         if v1image is not None:
-            self._ignore_pvc_event(constants.IMAGE_EVENT_TYPE_UPDATE,
-                                   v1image.to_dict())
+            if isinstance(v1image, dict):
+                self._ignore_pvc_event(constants.IMAGE_EVENT_TYPE_UPDATE,
+                                       v1image)
+            else:
+                self._ignore_pvc_event(constants.IMAGE_EVENT_TYPE_UPDATE,
+                                       v1image.to_dict())
         return v1image
 
     def _v2update_image(self, uuid, src_image, tgt_image, v1images, v2images,
@@ -1991,8 +2155,23 @@ class PowerVCImageManager(service.Service):
         try:
             attr_dict, remove_list = self._get_v2image_update_fields(src_image,
                                                                      tgt_image)
-            image = v2images.update(tgt_image.id, remove_props=remove_list,
-                                    **attr_dict)
+            if isinstance(tgt_image, dict):
+                tgt_image_name = tgt_image['name']
+                attr_dict = dict([(str(k), v) for k, v in attr_dict.items()])
+                if 'is_public' in attr_dict.keys():
+                    if isinstance(attr_dict['is_public'], bool):
+                        val = attr_dict['is_public']
+                        attr_dict['visibility'] = \
+                            'public' if val else 'private'
+                        attr_dict['is_public'] = str(attr_dict['is_public'])
+                remove_list = [(str(k)) for k in remove_list]
+                image = v2images.update(tgt_image['id'],
+                                        remove_props=remove_list,
+                                         **attr_dict)
+            else:
+                image = v2images.update(tgt_image.id, remove_props=remove_list,
+                                        **attr_dict)
+                tgt_image_name = tgt_image.name
 
             # Get the v1 image to return after the update
             v1image = self._get_image(uuid, image['id'], image['name'],
@@ -2002,7 +2181,7 @@ class PowerVCImageManager(service.Service):
             raise e
         except Exception as e:
             LOG.exception(_('An error occurred updating image \'%s\' for '
-                            'PowerVC UUID %s: %s'), tgt_image.name, uuid, e)
+                               'PowerVC UUID %s: %s'), tgt_image_name, uuid, e)
             return None
 
     def _get_v2image_update_fields(self, src_image, tgt_image):
@@ -2023,10 +2202,18 @@ class PowerVCImageManager(service.Service):
         """
 
         # Filter out any attributes that should not be updated
-        v1src_image_dict = \
-            self._filter_v1image_for_v2_update(src_image.to_dict())
-        v1tgt_image_dict = \
-            self._filter_v1image_for_v2_update(tgt_image.to_dict())
+        if isinstance(src_image, dict):
+            v1src_image_dict = \
+                self._filter_v1image_for_v2_update(src_image)
+        else:
+            v1src_image_dict = \
+                self._filter_v1image_for_v2_update(src_image.to_dict())
+        if isinstance(tgt_image, dict):
+            v1tgt_image_dict = \
+                self._filter_v1image_for_v2_update(tgt_image)
+        else:
+            v1tgt_image_dict = \
+                self._filter_v1image_for_v2_update(tgt_image.to_dict())
 
         # Convert v1 image to v2 image
         v2src_image_dict = self._convert_v1_to_v2(v1src_image_dict)
@@ -2122,10 +2309,7 @@ class PowerVCImageManager(service.Service):
             # visibility attribute, and image properties are converted to image
             # attributes
             field_value = v1image_dict.get(imagekey)
-            if imagekey == 'is_public':
-                v2image_dict['visibility'] = \
-                    'public' if field_value else 'private'
-            elif imagekey == 'properties':
+            if imagekey == 'properties':
                 props = field_value
                 if props is not None:
                     for prop_key in props.keys():
@@ -2328,7 +2512,12 @@ class PowerVCImageManager(service.Service):
         if uuid not in self.pvc_updated_at.keys():
             return True
         past = self.pvc_updated_at[uuid]
-        cur = v1image.updated_at
+        if isinstance(v1image, dict):
+            cur = v1image['updated_at']
+            v1image_name = v1image['name']
+        else:
+            cur = v1image.updated_at
+            v1image_name = v1image.name
         if past and cur:
             try:
                 past_updated_datetime = self._get_v1_datetime(past)
@@ -2336,7 +2525,7 @@ class PowerVCImageManager(service.Service):
                 return past_updated_datetime != cur_updated_datetime
             except Exception as e:
                 LOG.exception(_('An error occurred determining image update '
-                                'status for %s: %s'), v1image.name, e)
+                                'status for %s: %s'), v1image_name, e)
                 return True
         else:
             return True
@@ -2348,6 +2537,14 @@ class PowerVCImageManager(service.Service):
 
         :param: v1timestamp The v1 formatted timestamp string
         """
+        # What we actaully get here is the timestamp data from v2 response.
+        # Variable name might be misleading, but had to retain it for obvious
+        # reasons.
+        # The timestamp value that we now get as part of v2 response contains
+        # additional character in the end. Replace it with zero for backward
+        # compatibility.
+        if v1timestamp.endswith('Z'):
+            v1timestamp = v1timestamp.replace("Z", ".00")
         if '.' in v1timestamp:
             v1timestamp = v1timestamp.split('.')[0]
         return timeutils.parse_strtime(v1timestamp,
@@ -2622,36 +2819,43 @@ class PowerVCImageManager(service.Service):
                                 'was not update synchronized because it could '
                                 'not be found.'), local_name, pvc_id)
                     return
-
                 # Try processing the local image update
+                if isinstance(local_image, dict):
+                    local_image_name = local_image['name']
+                else:
+                    local_image_name = local_image.name
+
                 LOG.info(_('Performing update sync of image \'%s\' from the '
                            'local hosting OS to PowerVC after an image update '
-                           'event'), local_image.name)
+                           'event'), local_image_name)
 
                 # Update sync local image to PowerVC
-                pvc_v1client = self._get_pvc_v1_client()
-                v1pvc_images = pvc_v1client.images
                 pvc_v2client = self._get_pvc_v2_client()
                 v2pvc_images = pvc_v2client.images
                 pvc_image = self._get_image(pvc_id, pvc_id, local_name,
-                                            v1pvc_images, v2pvc_images)
+                                            v2pvc_images, v2pvc_images)
 
                 # Update the image if it is in PowerVC
                 if pvc_image is None:
                     LOG.info(_('The PowerVC image \'%s\' with UUID %s was not '
                                'updated because it could not be found.'),
-                             local_image.name, pvc_id)
+                             local_image_name, pvc_id)
                     return
 
                 # If the PowerVC image has changed, do not update it. This
                 # only happens if we lost an event. In that case we need to
                 # wait for the periodic scan to merge changes.
+                if isinstance(pvc_image, dict):
+                    pvc_image_name = pvc_image['name']
+                else:
+                    pvc_image_name = pvc_image.name
+
                 if self._pvc_image_updated(pvc_id, pvc_image):
                     LOG.info(_('The PowerVC image \'%s\' for PowerVC UUID %s '
                                'has changed. Changes between the local '
                                'hostingOS and the PowerVC image will be '
                                'merged during the next periodic scan.'),
-                             pvc_image.name, pvc_id)
+                             pvc_image_name, pvc_id)
                     return
 
                 # To avoid the image property image_topology is
@@ -2662,11 +2866,11 @@ class PowerVCImageManager(service.Service):
 
                 # Perform the image update to PowerVC
                 image = self._update_pvc_image(pvc_id, local_image, pvc_image,
-                                               v1pvc_images, v2pvc_images)
+                                               v2pvc_images, v2pvc_images)
                 if image is None:
                     LOG.error(_('PowerVC image \'%s\' with UUID %s was not '
                                 'updated after an image update event.'),
-                              pvc_image.name, pvc_id)
+                              pvc_image_name, pvc_id)
                     return
 
                 # NOTE: Do not reset the updated_at values until after both
@@ -2683,7 +2887,10 @@ class PowerVCImageManager(service.Service):
                 # updated_at dict so that it is not processed during a
                 # periodic sync due to this update.
                 if pvc_id in self.pvc_updated_at.keys():
-                    self.pvc_updated_at[pvc_id] = image.updated_at
+                    if isinstance(image, dict):
+                        self.pvc_updated_at[pvc_id] = image['updated_at']
+                    else:
+                        self.pvc_updated_at[pvc_id] = image.updated_at
 
                 # Set the new master image
                 self.master_image[pvc_id] = image
@@ -2759,12 +2966,15 @@ class PowerVCImageManager(service.Service):
                            'event'), local_name)
 
                 # Delete sync local image to PowerVC
-                pvc_v1client = self._get_pvc_v1_client()
-                v1pvc_images = pvc_v1client.images
                 pvc_v2client = self._get_pvc_v2_client()
                 v2pvc_images = pvc_v2client.images
+                # The below method takes v1image and v2image from PowerVC as
+                # parameters.
+                # Since v1 is deprecated with Queens, we are JUST replacing
+                # v1pvc_images param
+                # to v2pvc_images.
                 pvc_image = self._get_image(pvc_id, pvc_id, local_name,
-                                            v1pvc_images, v2pvc_images)
+                                            v2pvc_images, v2pvc_images)
 
                 # Delete the image if it is in PowerVC
                 if pvc_image is None:
@@ -2780,7 +2990,7 @@ class PowerVCImageManager(service.Service):
                     return
 
                 # Perform the image delete to PowerVC
-                image = self._delete_pvc_image(pvc_id, pvc_image, v1pvc_images)
+                image = self._delete_pvc_image(pvc_id, pvc_image, v2pvc_images)
                 if image is None:
                     LOG.error(_('PowerVC image \'%s\' with UUID %s could not '
                                 'be deleted after an image delete event.'),
@@ -2790,7 +3000,10 @@ class PowerVCImageManager(service.Service):
                 # Add delete to event ignore list so we don't process it
                 # again try to delete the local hosting OS image again.
                 # Only do this if event handling is running.
-                self._ignore_pvc_event(event_type, image.to_dict())
+                if isinstance(image, dict):
+                    self._ignore_pvc_event(event_type, image)
+                else:
+                    self._ignore_pvc_event(event_type, image.to_dict())
 
                 # Since the PowerVC image was deleted, remove the entry
                 # from the update_at dict so the change isn't processed
@@ -2983,12 +3196,11 @@ class PowerVCImageManager(service.Service):
 
         # Process the event
         try:
-            pvc_v1client = self._get_pvc_v1_client()
-            v1pvc_images = pvc_v1client.images
             pvc_v2client = self._get_pvc_v2_client()
             v2pvc_images = pvc_v2client.images
+            # v1pvc_images is now v2pvc_images
             pvc_image = self._get_image(pvc_id, pvc_id, pvc_name,
-                                        v1pvc_images, v2pvc_images)
+                                        v2pvc_images, v2pvc_images)
             if pvc_image is None:
                 LOG.debug(_('The PowerVC image \'%s\' with UUID %s was not '
                             'update synchronized because it could not be '
@@ -2996,9 +3208,13 @@ class PowerVCImageManager(service.Service):
                 return
 
             # Try processing the PowerVC image update
+            if isinstance(pvc_image, dict):
+                pvc_image_name = pvc_image['name']
+            else:
+                pvc_image_name = pvc_image.name
             LOG.info(_('Performing update sync of image \'%s\' from PowerVC to'
                        ' the local hosting OS after an image update event'),
-                     pvc_image.name)
+                     pvc_image_name)
 
             # Update sync PowerVC image to the local hosting OS
             local_v1client = self._get_local_v1_client()
@@ -3013,7 +3229,7 @@ class PowerVCImageManager(service.Service):
             if local_image is None:
                 LOG.info(_('The local hosting OS image \'%s\' with PowerVC '
                            'UUID %s was not updated because it could not be '
-                           'found.'), pvc_image.name, pvc_id)
+                           'found.'), pvc_image_name, pvc_id)
                 return
 
             # If the PowerVC image has changed, do not update it. This only
@@ -3142,7 +3358,10 @@ class PowerVCImageManager(service.Service):
             # Add delete to event ignore list so we don't process it again try
             # to delete the local hosting OS image again. Only do this if event
             # handling is running.
-            self._ignore_local_event(event_type, image.to_dict())
+            if isinstance(image, dict):
+                self._ignore_local_event(event_type, image)
+            else:
+                self._ignore_local_event(event_type, image.to_dict())
 
             # Since the local hostingOS image was deleted, remove the entry
             # from the update_at dict so the change isn't processed during a
@@ -3168,12 +3387,10 @@ class PowerVCImageManager(service.Service):
 
         # Process the event
         try:
-            pvc_v1client = self._get_pvc_v1_client()
-            v1pvc_images = pvc_v1client.images
             pvc_v2client = self._get_pvc_v2_client()
             v2pvc_images = pvc_v2client.images
             pvc_image = self._get_image(pvc_id, pvc_id, pvc_name,
-                                        v1pvc_images, v2pvc_images)
+                                        v2pvc_images, v2pvc_images)
 
             # Nothing to do if the image was not found
             if pvc_image is None:
@@ -3191,8 +3408,12 @@ class PowerVCImageManager(service.Service):
             # be the event ping-pong effect. Image update events with and
             # without the config strategy will go back and forth between
             # the local hostingOS and PowerVC.
-            self._ignore_pvc_event(constants.IMAGE_EVENT_TYPE_UPDATE,
-                                   pvc_image.to_dict())
+            if isinstance(pvc_image, dict):
+                self._ignore_pvc_event(constants.IMAGE_EVENT_TYPE_UPDATE,
+                                       pvc_image)
+            else:
+                self._ignore_pvc_event(constants.IMAGE_EVENT_TYPE_UPDATE,
+                                       pvc_image.to_dict())
 
             # Nothing to do if the image is not accesible
             if not self._image_is_accessible(pvc_image):
@@ -3202,9 +3423,16 @@ class PowerVCImageManager(service.Service):
                 return
 
             # Try processing the PowerVC image add
-            LOG.info(_('Performing add sync of image \'%s\' from PowerVC to '
-                       'the local hosting OS after an image activate event'),
-                     pvc_image.name)
+            if isinstance(pvc_image, dict):
+                LOG.info(_('Performing add sync of image \'%s\' '
+                           'from PowerVC to the local hosting OS '
+                           'after an image activate event'),
+                         pvc_image['name'])
+            else:
+                LOG.info(_('Performing add sync of image \'%s\' '
+                           'from PowerVC to the local hosting OS '
+                              'after an image activate event'),
+                         pvc_image.name)
 
             # Add sync PowerVC image to the local hosting OS
             local_v1client = self._get_local_v1_client()
@@ -3541,17 +3769,6 @@ class PowerVCImageManager(service.Service):
                 str(consts.SERVICE_TYPES.image), 'v2')
         return self.local_v2client
 
-    def _get_pvc_v1_client(self):
-        """
-        Get a PowerVC v1 glance client if not already created.
-
-        :returns: The glance v1 client for PowerVC
-        """
-        if self.pvc_v1client is None:
-            self.pvc_v1client = clients.POWERVC.get_client(
-                str(consts.SERVICE_TYPES.image), 'v1')
-        return self.pvc_v1client
-
     def _get_pvc_v2_client(self):
         """
         Get a PowerVC v2 glance client if not already created.
@@ -3672,14 +3889,21 @@ class PowerVCImageManager(service.Service):
             # Get all of the SCGS for the image. If an error occurs, an
             # exception will be raised, and the current operation will fail.
             # The caller should catch the exception and continue.
-            scgs = utils.get_utils().get_image_scgs(image.id)
+            if isinstance(image, dict):
+                image_id = image['id']
+                image_name = image['name']
+            else:
+                image_id = image.id
+                image_name = image.name
+
+            scgs = utils.get_utils().get_image_scgs(image_id)
             LOG.debug(_('Image \'%s\': Storage Connectivity Groups: %s'),
-                      image.name, str(scgs))
+                      image_name, str(scgs))
             for scg in scgs:
                 if scg.id in our_scg_id_list:
                     return True
             LOG.debug(_('Image \'%s\' is not accessible on Storage '
-                        'Connectivity Group \'%s\''), image.name,
+                        'Connectivity Group \'%s\''), image_name,
                       str([our_scg.display_name
                            for our_scg in self.our_scg_list]))
             return False
@@ -3786,9 +4010,17 @@ class PowerVCImageManager(service.Service):
                     unescaped if found. Returns None if no properties are found
         """
         filtered_props = None
+        props= dict()
         if v1image_dict is not None:
-            props = v1image_dict.get('properties', default_props)
-            if props is not None:
+            v1image_dict = dict([(str(k), v) for k, v in v1image_dict.items()])
+            if 'properties' in v1image_dict.keys():
+                props = v1image_dict.get('properties', default_props)
+            else:
+                for key in constants.V1_PROPERTIES:
+                    if key in v1image_dict.keys():
+                        props[key] = v1image_dict.get(key)
+
+            if props:
                 filtered_props = {}
                 for prop in props.keys():
                     if props[prop] is not None:
@@ -3848,16 +4080,27 @@ class PowerVCImageManager(service.Service):
         if image is not None and \
             image_scg_dict is not None and \
                 scg_storage_template_dict:
-
-            image_topology_prop = \
-                self._get_extra_property_image_topology(
-                    image.id,
-                    image_scg_dict,
-                    scg_storage_template_dict)
-            image_properties = self._get_image_properties(image.to_dict())
-            image_properties[u'image_topology'] = unicode(image_topology_prop)
-            image.properties = image_properties
-            image._info['properties'] = image_properties
+            if isinstance(image, dict):
+                image_topology_prop = \
+                    self._get_extra_property_image_topology(
+                        image['id'],
+                        image_scg_dict,
+                        scg_storage_template_dict)
+                image_properties = self._get_image_properties(image)
+                image = dict([(str(k), v) for k, v in image.items()])
+                image_properties['image_topology'] = image_topology_prop
+                image['properties'] = image_properties
+            else:
+                image_topology_prop = \
+                    self._get_extra_property_image_topology(
+                        image.id,
+                        image_scg_dict,
+                        scg_storage_template_dict)
+                image_properties = self._get_image_properties(image.to_dict())
+                image_properties[u'image_topology'] = \
+                    unicode(image_topology_prop)
+                image.properties = image_properties
+                image._info['properties'] = image_properties
             return image
         else:
             return image
@@ -3872,12 +4115,18 @@ class PowerVCImageManager(service.Service):
         :return The image object without these specific properties in the props
         """
         if image is not None and props is not None:
-            image_properties = self._get_image_properties(image.to_dict())
+            if isinstance(image, dict):
+                image_properties = self._get_image_properties(image)
+            else:
+                image_properties = self._get_image_properties(image.to_dict())
             for prop in props:
                 if prop in image_properties.keys():
                     del(image_properties[prop])
-            image.properties = image_properties
-            image._info['properties'] = image_properties
+            if isinstance(image, dict):
+                image['properties'] = image_properties
+            else:
+                image.properties = image_properties
+                image._info['properties'] = image_properties
             return image
         else:
             return image
