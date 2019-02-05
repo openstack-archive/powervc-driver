@@ -1,4 +1,4 @@
-# Copyright 2013, 2018 IBM Corp.
+# Copyright 2013, 2019 IBM Corp.
 
 """
 PowerVC Driver ImageManager service
@@ -604,12 +604,18 @@ class PowerVCImageManager(service.Service):
                                                            v2pvc_images)
 
                     if updated_image is None:
+                        # Fix for Bug#1814739. Handle missing custom properties for an
+                        # image due to API version change
+                        if isinstance(pvc_image, dict):
+                            pvc_image_name = pvc_image['name']
+                        else:
+                            pvc_image_name = pvc_image.name
                         LOG.error(_('PowerVC image \'%s\' with UUID %s was not'
                                     ' updated during periodic image '
                                     'synchronization. It will be updated again'
                                     ' during the next periodic image '
                                     'synchronization operation.'),
-                                  pvc_image.name, uuid)
+                                  pvc_image_name, uuid)
                     else:
                         self.pvc_updated_count += 1
 
@@ -617,7 +623,12 @@ class PowerVCImageManager(service.Service):
                         # next periodic sync operation. The update times are
                         # stored in a dict with the PowerVC UUID as the keys
                         # and the updated_at image attribute as the values.
-                        self.pvc_updated_at[uuid] = updated_image.updated_at
+                        # Fix for Bug#1814739. Handle missing custom properties for an
+                        # image due to API version change
+                        if isinstance(updated_image, dict):
+                            self.pvc_updated_at[uuid] = updated_image['updated_at']
+                        else:
+                            self.pvc_updated_at[uuid] = updated_image.updated_at
                         self.local_updated_at[uuid] = local_image.updated_at
 
                         # Save the PowerVC image as the master image
@@ -1892,9 +1903,12 @@ class PowerVCImageManager(service.Service):
 
             # Adds are keys in the source that are not in the target
             adds = src_prop_set.difference(tgt_prop_set)
-
+            deletes = 0
             # Deletes are keys in the target that are not in the source.
-            deletes = tgt_prop_set.difference(src_prop_set)
+            # Fix for Bug#1814739. Handle missing custom properties for an
+            # image due to API version change. Skip deleting the keys
+            # that are not in the source.
+            # deletes = tgt_prop_set.difference(src_prop_set)
 
             # Get the adds and updates
             for key in adds:
@@ -2229,9 +2243,12 @@ class PowerVCImageManager(service.Service):
 
         # Adds are keys in the source that are not in the target
         adds = src_image_set.difference(tgt_image_set)
-
+        deletes = 0
         # Deletes are keys in the target that are not in the source.
-        deletes = tgt_image_set.difference(src_image_set)
+        # Fix for Bug#1814739. Handle missing custom properties for an
+        # image due to API version change. Skip deleting the keys
+        # that are not in the source.
+        #deletes = tgt_image_set.difference(src_image_set)
 
         # Get the adds and updates
         add_update_dict = {}
@@ -3259,19 +3276,35 @@ class PowerVCImageManager(service.Service):
             # update_at dict so the change isn't processed during a periodic
             # scan
             if pvc_id in self.pvc_updated_at.keys():
-                self.pvc_updated_at[pvc_id] = pvc_image.updated_at
+                # Fix for Bug#1814739. Handle missing custom properties for an
+                # image due to API version change
+                if isinstance(pvc_image, dict):
+                    self.pvc_updated_at[pvc_id] = pvc_image['updated_at']
+                else:
+                    self.pvc_updated_at[pvc_id] = pvc_image.updated_at
 
             # Attempt to update the entry for this image in the local
             # updated_at dict so that it is not processed during a periodic
             # sync due to this update.
             if pvc_id in self.local_updated_at.keys():
-                self.local_updated_at[pvc_id] = image.updated_at
+                # Fix for Bug#1814739. Handle missing custom properties for an
+                # image due to API version change
+                if isinstance(image, dict):
+                    self.local_updated_at[pvc_id] = image['updated_at']
+                else:
+                    self.local_updated_at[pvc_id] = image.updated_at
 
             # Set the new master image
             self.master_image[pvc_id] = pvc_image
+            # Fix for Bug#1814739. Handle missing custom properties for an
+            # image due to API version change
+            if isinstance(pvc_image, dict):
+                pvc_image_name = pvc_image['name']
+            else:
+                pvc_image_name = pvc_image.name
             LOG.info(_('Completed update sync of image \'%s\' from PowerVC to '
                        'the local hosting OS after an image update event'),
-                     pvc_image.name)
+                     pvc_image_name)
         except Exception as e:
             LOG.exception(_('An error occurred processing the PowerVC image '
                             'update event: %s'), e)
@@ -3470,9 +3503,15 @@ class PowerVCImageManager(service.Service):
 
             # Update the image if it is in the local hosting OS, else add it
             if local_image is not None:
+                # Fix for Bug#1814739. Handle missing custom properties for an
+                # image due to API version change
+                if isinstance(pvc_image, dict):
+                    pvc_image_name = pvc_image['name']
+                else:
+                    pvc_image_name = pvc_image.name
                 LOG.info(_('The local hosting OS image \'%s\' with PowerVC '
                            'UUID %s already exists so it will be updated.'),
-                         pvc_image.name, pvc_id)
+                         pvc_image_name, pvc_id)
 
                 # If this is a snapshot image, it may not have an entry in the
                 # ids_dict so add one here.
@@ -3525,9 +3564,15 @@ class PowerVCImageManager(service.Service):
                         pvc_v2client.http_client.endpoint, v1local_images,
                         v2local_images)
                     if image is None:
+                        # Fix for Bug#1814739. Handle missing custom properties for an
+                        # image due to API version change
+                        if isinstance(pvc_image, dict):
+                            pvc_image_name = pvc_image['name']
+                        else:
+                            pvc_image_name = pvc_image.name
                         LOG.error(_('Local hosting OS image \'%s\' for PowerVC'
                                     'UUID %s could not be created after an '
-                                    'image create event.'), pvc_image.name,
+                                    'image create event.'), pvc_image_name,
                                   pvc_id)
                         return
 
@@ -3552,9 +3597,15 @@ class PowerVCImageManager(service.Service):
             # only be used if the there is an image for the UUID on hoth
             # servers.
             self.master_image[pvc_id] = pvc_image
+            # Fix for Bug#1814739. Handle missing custom properties for an
+            # image due to API version change
+            if isinstance(pvc_image, dict):
+                pvc_image_name = pvc_image['name']
+            else:
+                pvc_image_name = pvc_image.name
             LOG.info(_('Completed add sync of image \'%s\' from PowerVC to the'
                        ' local hosting OS after an image activate event'),
-                     pvc_image.name)
+                     pvc_image_name)
         except Exception as e:
             LOG.exception(_('An error occurred processing the PowerVC image '
                             'create event: %s'), e)

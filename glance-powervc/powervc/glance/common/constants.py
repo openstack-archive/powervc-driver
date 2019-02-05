@@ -1,4 +1,4 @@
-# Copyright 2013, 2018 IBM Corp.
+# Copyright 2013, 2019 IBM Corp.
 
 """
 All PowerVC Driver ImageManager Constants
@@ -98,5 +98,11 @@ IMAGE_SYNC_CHECK_INTERVAL_TIME_IN_SECONDS = 1
 # Block Device Mapping Key in image properties
 BDM_KEY = 'block_device_mapping'
 
+# Fix for Bug#1814739. Handle missing custom properties for an
+# image due to API version change
 V1_PROPERTIES = ['os_distro', 'block_device_mapping', 'hypervisor_type',
-                 'bdm_v2', 'architecture', 'endianness', 'root_device_name']
+                 'bdm_v2', 'architecture', 'endianness', 'vcpus',
+                 'boot_roles', 'root_device_name', 'owner_id',
+                 'owner_user_name', 'user_id', 'Euca2ools state',
+                 'decision_id', 'disk_format', 'image_location', 'memory_mb',
+                 'storage_connectivity_group_id', 'owner_project_name']
