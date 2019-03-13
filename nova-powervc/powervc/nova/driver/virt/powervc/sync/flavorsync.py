@@ -1,4 +1,4 @@
-# Copyright 2013 IBM Corp.
+# Copyright 2013, 2018 IBM Corp.
 
 import re
 from eventlet import greenthread
@@ -168,7 +168,7 @@ class FlavorSync():
     def _insert_pvc_flavor_extraspecs(self, context, flavor, extra_specs):
         """ Insert the flavor and extra specs if any """
         flavor_created = self._create_flavor(context, flavor)
-        if extra_specs:
+        if flavor_created and extra_specs:
             self._update_flavor_extraspecs(context,
                                            flavor_created.get('flavorid'),
                                            extra_specs)
@@ -202,5 +202,7 @@ class FlavorSync():
                                   flavorid=flavorid, swap=swap,
                                   rxtx_factor=rxtx_factor,
                                   is_public=is_public)
-        except exception.InstanceExists as err:
-            raise err
+        except Exception as exc:
+            LOG.error(_("Unable to sync flavor "
+                        + str(name) + ". " + str(exc.format_message())))
+            return None
